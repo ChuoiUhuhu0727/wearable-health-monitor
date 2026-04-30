@@ -1,107 +1,88 @@
-/*
- * Project: Aikido Punch Tracker (Member 2 - Giang)
- * Location: /firmware/main.cpp
- * Description: Data collection for MPU6050 & MAX30102 on ESP32 S3
- */
 #include <Arduino.h>
 #include <Wire.h>
+#include <math.h>
 #include "MAX30105.h"
+#include "classifier.h"
 
-// --- SYSTEM CONFIGURATION ---
+// --- CẤU HÌNH HỆ THỐNG ---
 const int MPU_ADDR = 0x68;
-MAX30105 ppgSensor;
+const int WINDOW_SIZE = 60;
+const int SAMPLE_INTERVAL = 40; // Đổi thành 40ms (25Hz) để khớp với dữ liệu Train
 
+float windowBuffer[WINDOW_SIZE];
+int windowCount = 0;
 unsigned long lastSampleTime = 0;
-const int sampleInterval = 10; // 100Hz (1 sample every 10ms) [cite: 73]
-bool isCollecting = false;     // Waiting for 's' command from Python
 
 void setup() {
   Serial.begin(115200);
-  
-  // Wait for Serial connection (Important for S3 chips)
-  while (!Serial) {
-    delay(10);
-  }
+  Wire.begin(8, 9); // Lolin S3 Mini Pins
 
-  // Initialize I2C (SDA=8, SCL=9 for Lolin S3 Mini)
-  Wire.begin(8, 9); 
-
-  // 1. MPU6050 INITIALIZATION
+  // Khởi tạo MPU6050 (Giữ nguyên code khởi tạo cũ của cậu)
   Wire.beginTransmission(MPU_ADDR);
-  Wire.write(0x6B); // Power Management register
-  Wire.write(0);    // Wake up sensor
-  Wire.endTransmission(true);
-
-  // SET RANGE TO +/- 16G (PREVENT CLIPPING) [cite: 74]
-  Wire.beginTransmission(MPU_ADDR);
-  Wire.write(0x1C); // ACCEL_CONFIG register
-  Wire.write(0x18); // Write 0x18 for +/- 16g full scale
+  Wire.write(0x6B); 
+  Wire.write(0);    
   Wire.endTransmission(true);
   
-  // 2. MAX30102 INITIALIZATION
-  if (!ppgSensor.begin(Wire, I2C_SPEED_FAST)) {
-    Serial.println(">Status:MAX30102_NOT_FOUND");
-    while (1); 
-  }
+  // Set Range +/- 16G (Quan trọng để không bị kịch trần khi đấm mạnh)
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x1C); 
+  Wire.write(0x18); 
+  Wire.endTransmission(true);
 
-  // PPG SETUP (PREVENT SATURATION 262,143) 
-  byte ledBrightness = 30;  // Adjust to 15 if values still exceed 200,000 
-  byte sampleAverage = 4;   
-  byte ledMode = 2;         // 2 = Red + IR
-  int sampleRate = 100;     
-  int pulseWidth = 411;     
-  int adcRange = 4096;      
-
-  ppgSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange);
-
-  // 3. SYSTEM STATUS MESSAGE
-  delay(500);
-  Serial.println("\n==================================");
-  Serial.println(">Status:SYSTEM_READY");
-  Serial.println(">Instruction: Send 's' to START, 'r' to RESTART");
-  Serial.println("==================================");
+  Serial.println("System Ready: AI Classification Mode");
 }
 
 void loop() {
-  // Check for commands from Serial Monitor or Python script
-  if (Serial.available() > 0) {
-    char cmd = Serial.read();
-    if (cmd == 's') {
-      isCollecting = true;
-      Serial.println(">Status:STREAMING_STARTED");
-    } else if (cmd == 'r') {
-      isCollecting = false;
-      Serial.println(">Status:STREAMING_STOPPED");
-      ESP.restart(); 
-    }
-  }
+  if (millis() - lastSampleTime >= SAMPLE_INTERVAL) {
+    lastSampleTime = millis();
 
-  // Only send data if 's' command has been received
-  if (isCollecting) {
-    unsigned long currentTime = millis();
-    if (currentTime - lastSampleTime >= sampleInterval) {
-      lastSampleTime = currentTime;
+    // 1. ĐỌC DỮ LIỆU GIA TỐC
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_ADDR, 6);
 
-      // READ IMU DATA (6 bytes)
-      Wire.beginTransmission(MPU_ADDR);
-      Wire.write(0x3B);
-      Wire.endTransmission(false);
-      Wire.requestFrom((uint8_t)MPU_ADDR, (uint8_t)6);
+    if (Wire.available() >= 6) {
+      int16_t ax = (Wire.read() << 8) | Wire.read();
+      int16_t ay = (Wire.read() << 8) | Wire.read();
+      int16_t az = (Wire.read() << 8) | Wire.read();
 
-      if (Wire.available() >= 6) {
-        int16_t ax = (int16_t)((Wire.read() << 8) | Wire.read());
-        int16_t ay = (int16_t)((Wire.read() << 8) | Wire.read());
-        int16_t az = (int16_t)((Wire.read() << 8) | Wire.read()); // PUNCH DIRECTION (Z-axis)
+      // Tính Magnitude (Độ lớn tổng hợp)
+      float accMag = sqrt((float)ax*ax + (float)ay*ay + (float)az*az);
+      
+      // Cho vào Buffer
+      windowBuffer[windowCount] = accMag;
+      windowCount++;
 
-        // READ PPG DATA (IR)
-        long irValue = ppgSensor.getIR();
+      // 2. KHI ĐỦ 60 MẪU (1 WINDOW) -> TÍNH FEATURE & PHÂN LOẠI
+      if (windowCount >= WINDOW_SIZE) {
+        float sum = 0, sumSq = 0, peakMax = 0;
 
-        // SEND DATA TO PYTHON (Format: >Key:Value) 
-        // Note: AccZ is sent LAST to act as the row-trigger in Python
-        Serial.print(">Heart_IR:"); Serial.println(irValue);
-        Serial.print(">AccX:");     Serial.println(ax);
-        Serial.print(">AccY:");     Serial.println(ay);
-        Serial.print(">AccZ:");     Serial.println(az);
+        for (int i = 0; i < WINDOW_SIZE; i++) {
+          float val = windowBuffer[i];
+          sum += val;
+          sumSq += val * val;
+          if (val > peakMax) peakMax = val;
+        }
+
+        float mean = sum / WINDOW_SIZE;
+        float variance = (sumSq / WINDOW_SIZE) - (mean * mean);
+        float stdDev = sqrt(max(0.0f, variance));
+        float peakRel = (mean != 0) ? (peakMax / mean) : 0;
+
+        // 3. GỌI MÔ HÌNH AI
+        int result = classifySignal(peakMax, stdDev, peakRel);
+
+        // 4. XUẤT KẾT QUẢ
+        Serial.print("Analysis: ");
+        if (result == 1) {
+          Serial.println(">>> [INTENSE PUNCH] <<<");
+        } else {
+          Serial.println("Normal movement");
+        }
+
+        // Reset để chờ Window tiếp theo
+        windowCount = 0; 
       }
     }
   }
