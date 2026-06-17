@@ -119,7 +119,8 @@ void printReport(bool isFinal) {
 // =====================================================================
 void setup() {
     Serial.begin(115200);
-    delay(3000);  // chờ Serial Monitor kịp mở
+    uint32_t t0 = millis();
+    while (!Serial && millis() - t0 < 5000) { delay(10); }
 
     Serial.println("\n=======================================================");
     Serial.println("   BASELINE MODE — Decision Tree Classifier");
@@ -131,7 +132,20 @@ void setup() {
                   ESP.getFreeHeap() / 1024.0f);
 
     Wire.begin(5, 6);
-    Wire.setClock(400000);
+    Wire.setClock(100000);
+
+    Serial.println("[SCAN] Scanning I2C bus...");
+    int found = 0;
+    for (uint8_t addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            Serial.printf("[SCAN] Found device at 0x%02X\n", addr);
+            found++;
+        }
+    }
+    if (found == 0) Serial.println("[SCAN] No I2C devices found — check wiring");
+    Serial.println("[SCAN] Done.");
+
     initMPU6050();
 
     if (!ppgSensor.begin(Wire, I2C_SPEED_FAST)) {
