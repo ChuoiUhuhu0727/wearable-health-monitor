@@ -26,6 +26,7 @@ const int IMU_INTERVAL = 40;   // 25 Hz
 const int PPG_INTERVAL = 10;   // 100 Hz
 
 MAX30105      ppgSensor;
+bool          ppgOK = false;
 float         windowBuffer[WINDOW_SIZE];
 int           windowCount  = 0;
 float         globalAccMag = 2048.0f;
@@ -131,8 +132,9 @@ void setup() {
     Serial.printf("[RAM]  Heap trước khi init sensor: %.1f KB\n",
                   ESP.getFreeHeap() / 1024.0f);
 
-    Wire.begin(5, 6);
+    Wire.begin();
     Wire.setClock(100000);
+    delay(100);  // let bus settle after init
 
     Serial.println("[SCAN] Scanning I2C bus...");
     int found = 0;
@@ -148,7 +150,8 @@ void setup() {
 
     initMPU6050();
 
-    if (!ppgSensor.begin(Wire, I2C_SPEED_FAST)) {
+    ppgOK = ppgSensor.begin(Wire, I2C_SPEED_STANDARD);
+    if (!ppgOK) {
         Serial.println("[WARN] MAX30102 không tìm thấy — vẫn đo được IMU+classifier");
     } else {
         ppgSensor.setup(30, 1, 2, 100, 411, 4096);
@@ -167,7 +170,7 @@ void loop() {
     unsigned long now = millis();
 
     // --- PPG 100 Hz (chỉ đọc để giữ sensor hoạt động bình thường) ---
-    if (now - lastPPGTime >= PPG_INTERVAL) {
+    if (ppgOK && now - lastPPGTime >= PPG_INTERVAL) {
         lastPPGTime = now;
         ppgSensor.getIR();
     }
