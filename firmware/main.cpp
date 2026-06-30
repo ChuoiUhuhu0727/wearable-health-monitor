@@ -43,6 +43,11 @@
 #define OUT_Q_DEPTH    3
 
 // BLE
+// Buzzer + session timer
+#define BUZZER_PIN       3          // D2 on XIAO ESP32-S3
+#define SESSION_MS       60000      // 60 seconds per activity
+#define NUM_SESSIONS     5
+
 #define BLE_DEVICE_NAME  "WearableMonitor"
 #define SVC_UUID         "AA10D001-0000-0000-0000-000000000001"
 #define CHAR_STREAM_UUID "AA10D002-0000-0000-0000-000000000001"
@@ -104,6 +109,27 @@ static void initMPU6050() {
 // TASK 1: IMU READER
 // Đọc gia tốc thô từ MPU6050 ở 25 Hz, đẩy vào imu_queue
 // -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+// TASK 5: SESSION BUZZER
+// Buzzes 3 times between activity sessions, 5 times when all done
+// -----------------------------------------------------------------------
+static void buzz(int count, int on_ms, int off_ms) {
+    for (int i = 0; i < count; i++) {
+        tone(BUZZER_PIN, 2000, on_ms);
+        vTaskDelay(pdMS_TO_TICKS(on_ms + off_ms));
+    }
+}
+
+static void task_session_buzzer(void* arg) {
+    for (int session = 0; session < NUM_SESSIONS - 1; session++) {
+        vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
+        buzz(3, 200, 150);   // 3 short beeps → next activity
+    }
+    vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
+    buzz(5, 500, 150);       // 5 long beeps → all done
+    vTaskDelete(NULL);
+}
+
 static void task_imu_reader(void* arg) {
     TickType_t       xLastWakeTime = xTaskGetTickCount();
     const TickType_t xPeriod       = pdMS_TO_TICKS(1000 / IMU_HZ);  // 40 ms
@@ -154,7 +180,7 @@ static void task_ppg_reader(void* arg) {
         long ir = ppgSensor.getIR();
         xSemaphoreGive(i2c_mutex);
 
-        if (ir > 10000) {
+        if (ir > 3000) {   // wrist IR is weaker than fingertip — lower contact threshold
             PpgSample sample = { ir };
             xQueueSend(ppg_queue, &sample, 0);  // drop nếu đầy
         }
@@ -232,9 +258,9 @@ static void task_classifier(void* arg) {
             float ac = ppgSample.ir - dcOffset;
 
             // Peak detection → BPM
-            if (ac > 150.0f) {
+            if (ac > 50.0f) {   // wrist AC amplitude ~3–5x smaller than fingertip
                 if (ac > maxInWave) maxInWave = ac;
-            } else if (ac < -50.0f && maxInWave > 150.0f) {
+            } else if (ac < -15.0f && maxInWave > 50.0f) {
                 unsigned long now      = millis();
                 long          interval = now - lastBeatMs;
                 if (lastBeatMs > 0 && interval > 375 && interval < 1200
@@ -323,6 +349,9 @@ void setup() {
     Serial.println("=======================================================");
 
     // Hardware
+    pinMode(BUZZER_PIN, OUTPUT);
+    digitalWrite(BUZZER_PIN, LOW);
+
     Wire.begin(5, 6);
     Wire.setClock(100000);
     initMPU6050();
@@ -346,12 +375,13 @@ void setup() {
 
     // Tạo 4 tasks
     //                         name           stack       arg  prio  handle
-    xTaskCreate(task_imu_reader,   "imu_reader",  STACK_IMU, nullptr, 3, nullptr);
-    xTaskCreate(task_ppg_reader,   "ppg_reader",  STACK_PPG, nullptr, 3, nullptr);
-    xTaskCreate(task_classifier,   "classifier",  STACK_CLF, nullptr, 2, nullptr);
-    xTaskCreate(task_ble_streamer, "ble_streamer",STACK_BLE, nullptr, 1, nullptr);
+    xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU, nullptr, 3, nullptr);
+    xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG, nullptr, 3, nullptr);
+    xTaskCreate(task_classifier,    "classifier",    STACK_CLF, nullptr, 2, nullptr);
+    xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE, nullptr, 1, nullptr);
+    xTaskCreate(task_session_buzzer,"session_buzzer",2048,      nullptr, 1, nullptr);
 
-    Serial.println("[OK]  4 FreeRTOS tasks created.");
+    Serial.println("[OK]  5 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",
                    ESP.getFreeHeap() / 1024.0f);
 }
