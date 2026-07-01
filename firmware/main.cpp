@@ -18,6 +18,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <math.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
 #include <NimBLEDevice.h>
 #include "MAX30105.h"
 #include "classifier.h"
@@ -45,8 +47,14 @@
 // BLE
 // Buzzer + session timer
 #define BUZZER_PIN       3          // D2 on XIAO ESP32-S3
-#define SESSION_MS       60000      // 60 seconds per activity
+#define SESSION_MS       90000      // 90 seconds per activity (15s transition + 75s clean)
 #define NUM_SESSIONS     5
+
+// WiFi AP + UDP
+#define AP_SSID          "WearableCollector"
+#define AP_PASS          "wearable123"
+#define UDP_PORT         4210
+#define UDP_BROADCAST    "192.168.4.255"
 
 #define BLE_DEVICE_NAME  "WearableMonitor"
 #define SVC_UUID         "AA10D001-0000-0000-0000-000000000001"
@@ -90,6 +98,9 @@ static SemaphoreHandle_t i2c_mutex;
 // BLE characteristic handle — ghi bởi setup, đọc bởi ble_streamer
 static NimBLECharacteristic* pStreamChar = nullptr;
 
+// UDP socket — khởi tạo trong setup, dùng trong task_ble_streamer
+static WiFiUDP udp;
+
 // -----------------------------------------------------------------------
 // SENSOR OBJECT (khởi tạo trong setup, dùng trong task_ppg_reader)
 // -----------------------------------------------------------------------
@@ -113,21 +124,22 @@ static void initMPU6050() {
 // TASK 5: SESSION BUZZER
 // Buzzes 3 times between activity sessions, 5 times when all done
 // -----------------------------------------------------------------------
-static void buzz(int count, int on_ms, int off_ms) {
+static void buzz(int count, int freq, int on_ms, int off_ms) {
     for (int i = 0; i < count; i++) {
-        tone(BUZZER_PIN, 2000, on_ms);
+        tone(BUZZER_PIN, freq, on_ms);
         vTaskDelay(pdMS_TO_TICKS(on_ms + off_ms));
     }
 }
 
 static void task_session_buzzer(void* arg) {
-    for (int session = 0; session < NUM_SESSIONS - 1; session++) {
+    while (true) {
+        for (int session = 0; session < NUM_SESSIONS - 1; session++) {
+            vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
+            buzz(3, 800, 200, 150);   // low pitch → next activity
+        }
         vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
-        buzz(3, 200, 150);   // 3 short beeps → next activity
+        buzz(5, 800, 500, 150);       // low pitch → participant done
     }
-    vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
-    buzz(5, 500, 150);       // 5 long beeps → all done
-    vTaskDelete(NULL);
 }
 
 static void task_imu_reader(void* arg) {
@@ -205,6 +217,9 @@ static void task_classifier(void* arg) {
     float         currentBPM  = 75.0f;
     unsigned long lastBeatMs  = 0;
 
+    // --- PPG watchdog ---
+    unsigned long lastPpgMs   = millis();
+
     ImuSample    imuSample;
     PpgSample    ppgSample;
     OutputResult result = { 0, 75.0f };
@@ -252,7 +267,9 @@ static void task_classifier(void* arg) {
         }
 
         // --- B. Drain tất cả PPG samples đang chờ (non-blocking) ---
+        bool gotPpg = false;
         while (xQueueReceive(ppg_queue, &ppgSample, 0) == pdTRUE) {
+            gotPpg = true;
             // DC removal
             dcOffset = dcOffset * 0.99f + ppgSample.ir * 0.01f;
             float ac = ppgSample.ir - dcOffset;
@@ -272,6 +289,14 @@ static void task_classifier(void* arg) {
                 lastBeatMs = now;
                 maxInWave  = 0;
             }
+        }
+
+        // --- C. PPG watchdog — buzz high pitch if sensor lost contact ---
+        if (gotPpg) {
+            lastPpgMs = millis();
+        } else if (millis() - lastPpgMs > 3000) {
+            tone(BUZZER_PIN, 3000, 300);  // non-blocking high pitch warning
+            lastPpgMs = millis();         // reset — warns again after 3s if still lost
         }
     }
 }
@@ -303,6 +328,11 @@ static void task_ble_streamer(void* arg) {
                 pStreamChar->notify();
             }
 
+            // UDP stream → laptop running log_udp.py
+            udp.beginPacket(UDP_BROADCAST, UDP_PORT);
+            udp.write((uint8_t*)payload, strlen(payload));
+            udp.endPacket();
+
             // Serial stream cho Serial Plotter / debug
             Serial.printf(">activity:%d|bpm:%.2f|heap:%lu\n",
                           result.activity_class,
@@ -310,6 +340,16 @@ static void task_ble_streamer(void* arg) {
                           (unsigned long)ESP.getFreeHeap());
         }
     }
+}
+
+// -----------------------------------------------------------------------
+// SETUP WiFi AP
+// -----------------------------------------------------------------------
+static void setupWiFi() {
+    WiFi.softAP(AP_SSID, AP_PASS);
+    udp.begin(UDP_PORT);
+    Serial.printf("[WiFi] AP started. SSID: %s  IP: %s\n",
+                  AP_SSID, WiFi.softAPIP().toString().c_str());
 }
 
 // -----------------------------------------------------------------------
@@ -369,6 +409,9 @@ void setup() {
     ppg_queue    = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
     output_queue = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
     Serial.println("[OK]  Queues created.");
+
+    // WiFi AP + UDP (start before BLE for radio coexistence)
+    setupWiFi();
 
     // BLE
     setupBLE();
