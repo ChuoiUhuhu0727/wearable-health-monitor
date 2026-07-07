@@ -21,6 +21,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <NimBLEDevice.h>
+#include <LittleFS.h>
 #include "MAX30105.h"
 #include "classifier.h"
 
@@ -48,13 +49,18 @@
 // Buzzer + session timer
 #define BUZZER_PIN       3          // D2 on XIAO ESP32-S3
 #define SESSION_MS       90000      // 90 seconds per activity (15s transition + 75s clean)
+#define TRANSITION_MS    15000      // first 15s of each session — body settling, not clean data
 #define NUM_SESSIONS     5
+
+// Onboard flash logging (LittleFS) — untethered recording, retrieved later over Serial
+#define MAX_STORED_SESSIONS 20      // cap on how many participant runs can queue up before a dump
 
 // WiFi AP + UDP
 #define AP_SSID          "WearableCollector"
 #define AP_PASS          "wearable123"
 #define UDP_PORT         4210
 #define UDP_BROADCAST    "192.168.4.255"
+#define WIFI_CHANNEL     6     // 2.4GHz non-overlapping channels: 1, 6, 11 — retune if still congested
 
 #define BLE_DEVICE_NAME  "WearableMonitor"
 #define SVC_UUID         "AA10D001-0000-0000-0000-000000000001"
@@ -94,6 +100,19 @@ static QueueHandle_t     imu_queue;
 static QueueHandle_t     ppg_queue;
 static QueueHandle_t     output_queue;
 static SemaphoreHandle_t i2c_mutex;
+static SemaphoreHandle_t buzzer_mutex;   // task_session_buzzer + classifier watchdog both call tone() on BUZZER_PIN
+
+// Order matches log_udp.py's ACTIVITY_LABELS — ascending intensity (warm-up/cool-down safety)
+static const char* ACTIVITY_LABELS[NUM_SESSIONS] = {
+    "lying", "sitting", "standing", "walking", "running"
+};
+
+// Current activity index + when it started — written by task_session_buzzer,
+// read by task_ble_streamer to label each row it writes to flash.
+static volatile int           currentSessionIndex = 0;
+static volatile unsigned long sessionStartMs       = 0;
+
+static File sessionFile;   // open for the whole run, closed when the 5th session ends
 
 // BLE characteristic handle — ghi bởi setup, đọc bởi ble_streamer
 static NimBLECharacteristic* pStreamChar = nullptr;
@@ -106,6 +125,60 @@ static WiFiUDP udp;
 // -----------------------------------------------------------------------
 static MAX30105 ppgSensor;
 static bool     ppgOK = false;
+static long     lastIR = 0;   // most recent raw IR reading, for live debug print
+
+// -----------------------------------------------------------------------
+// ONBOARD FLASH LOGGING (LittleFS)
+// Each participant run gets its own /session_N.csv. Files persist across
+// power cycles, so multiple participants can be recorded back-to-back
+// fully untethered — retrieval happens later in one batch (see dump below).
+// -----------------------------------------------------------------------
+static String nextSessionPath() {
+    for (int n = 1; n <= MAX_STORED_SESSIONS; n++) {
+        String path = "/session_" + String(n) + ".csv";
+        if (!LittleFS.exists(path)) return path;
+    }
+    return "/session_overflow.csv";   // shouldn't happen at normal batch sizes
+}
+
+// Prints every stored session file to Serial, then deletes it. Triggered
+// only when something is actually listening on boot (see waitForDumpRequest).
+static void dumpAndClearSessions() {
+    Serial.println("\n===== SESSION DUMP START =====");
+    bool any = false;
+    for (int n = 1; n <= MAX_STORED_SESSIONS; n++) {
+        String path = "/session_" + String(n) + ".csv";
+        if (!LittleFS.exists(path)) continue;
+        any = true;
+
+        File f = LittleFS.open(path, "r");
+        Serial.printf("----- FILE: session_%d.csv -----\n", n);
+        while (f.available()) Serial.write(f.read());
+        Serial.printf("----- END: session_%d.csv -----\n", n);
+        f.close();
+        LittleFS.remove(path);
+    }
+    if (!any) Serial.println("(no stored sessions found)");
+    Serial.println("===== SESSION DUMP END =====\n");
+}
+
+// Gives you a window to request a dump right after reset — send any
+// character in Serial Monitor within WAIT_MS. Times out silently (and
+// harmlessly) when running untethered on battery, since nothing can send
+// a character in that case.
+static bool waitForDumpRequest(unsigned long waitMs) {
+    Serial.printf("[BOOT] Send any character within %lus to dump + clear stored sessions...\n",
+                  waitMs / 1000);
+    unsigned long start = millis();
+    while (millis() - start < waitMs) {
+        if (Serial.available()) {
+            while (Serial.available()) Serial.read();   // drain
+            return true;
+        }
+        delay(50);
+    }
+    return false;
+}
 
 static void initMPU6050() {
     Wire.beginTransmission(IMU_ADDR);
@@ -126,20 +199,44 @@ static void initMPU6050() {
 // -----------------------------------------------------------------------
 static void buzz(int count, int freq, int on_ms, int off_ms) {
     for (int i = 0; i < count; i++) {
-        tone(BUZZER_PIN, freq, on_ms);
-        vTaskDelay(pdMS_TO_TICKS(on_ms + off_ms));
+        // Bounded wait — if tone() ever hangs while holding this mutex, we skip
+        // this beep instead of freezing the whole session-progression loop forever.
+        if (xSemaphoreTake(buzzer_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+            // Manual on/off instead of tone()'s duration param — avoids relying
+            // on its internal auto-stop timer, which is the suspected hang point.
+            tone(BUZZER_PIN, freq);
+            vTaskDelay(pdMS_TO_TICKS(on_ms));
+            noTone(BUZZER_PIN);
+            xSemaphoreGive(buzzer_mutex);
+            vTaskDelay(pdMS_TO_TICKS(off_ms));
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(on_ms + off_ms));
+        }
     }
 }
 
 static void task_session_buzzer(void* arg) {
-    while (true) {
-        for (int session = 0; session < NUM_SESSIONS - 1; session++) {
-            vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
-            buzz(3, 800, 200, 150);   // low pitch → next activity
-        }
+    for (int session = 0; session < NUM_SESSIONS; session++) {
+        currentSessionIndex = session;
+        sessionStartMs      = millis();
+
         vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
-        buzz(5, 800, 500, 150);       // low pitch → participant done
+
+        if (session < NUM_SESSIONS - 1) {
+            buzz(3, 800, 200, 150);   // low pitch → next activity
+        } else {
+            buzz(5, 800, 500, 150);   // low pitch → participant done
+        }
     }
+
+    if (sessionFile) {
+        sessionFile.flush();
+        sessionFile.close();
+    }
+    Serial.println("[SESSION] All 5 activities complete for this participant. "
+                    "Safe to power off, or reset to record the next one.");
+
+    vTaskDelete(nullptr);   // one participant per boot — done for this run
 }
 
 static void task_imu_reader(void* arg) {
@@ -191,6 +288,7 @@ static void task_ppg_reader(void* arg) {
         xSemaphoreTake(i2c_mutex, portMAX_DELAY);
         long ir = ppgSensor.getIR();
         xSemaphoreGive(i2c_mutex);
+        lastIR = ir;
 
         if (ir > 3000) {   // wrist IR is weaker than fingertip — lower contact threshold
             PpgSample sample = { ir };
@@ -295,7 +393,12 @@ static void task_classifier(void* arg) {
         if (gotPpg) {
             lastPpgMs = millis();
         } else if (millis() - lastPpgMs > 3000) {
-            tone(BUZZER_PIN, 3000, 300);  // non-blocking high pitch warning
+            if (xSemaphoreTake(buzzer_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+                tone(BUZZER_PIN, 3000);   // high pitch warning
+                vTaskDelay(pdMS_TO_TICKS(300));
+                noTone(BUZZER_PIN);
+                xSemaphoreGive(buzzer_mutex);
+            }
             lastPpgMs = millis();         // reset — warns again after 3s if still lost
         }
     }
@@ -328,17 +431,55 @@ static void task_ble_streamer(void* arg) {
                 pStreamChar->notify();
             }
 
-            // UDP stream → laptop running log_udp.py
+            // UDP stream → laptop running log_udp.py (best-effort live view only)
             udp.beginPacket(UDP_BROADCAST, UDP_PORT);
             udp.write((uint8_t*)payload, strlen(payload));
             udp.endPacket();
 
+            // Flash log → the guaranteed record, independent of WiFi/BLE entirely
+            if (sessionFile) {
+                bool isTransition = (millis() - sessionStartMs) < TRANSITION_MS;
+                sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f\n",
+                                    millis(),
+                                    ACTIVITY_LABELS[currentSessionIndex],
+                                    (int)isTransition,
+                                    result.activity_class,
+                                    result.bpm,
+                                    result.mean_mag,
+                                    result.std_mag,
+                                    result.peak_rel,
+                                    result.peak_max);
+                sessionFile.flush();
+            }
+
             // Serial stream cho Serial Plotter / debug
-            Serial.printf(">activity:%d|bpm:%.2f|heap:%lu\n",
+            Serial.printf(">activity:%d|bpm:%.2f|heap:%lu|ppgOK:%d|ir:%ld\n",
                           result.activity_class,
                           result.bpm,
-                          (unsigned long)ESP.getFreeHeap());
+                          (unsigned long)ESP.getFreeHeap(),
+                          (int)ppgOK,
+                          lastIR);
         }
+    }
+}
+
+// -----------------------------------------------------------------------
+// WiFi CONNECTION STABILITY LOGGING
+// In prints every join/drop event with a timestamp, so connection drops
+// show up in the log instead of just silently missing rows.
+// -----------------------------------------------------------------------
+static void onWiFiEvent(WiFiEvent_t event) {
+    switch (event) {
+        case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+            Serial.printf("[WiFi] +CONNECT   t=%lums  stations=%d\n",
+                          millis(), WiFi.softAPgetStationNum());
+            break;
+        case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+            Serial.printf("[WiFi] -DISCONNECT t=%lums  stations=%d\n",
+                          millis(), WiFi.softAPgetStationNum());
+            break;
+        default:
+            break;
     }
 }
 
@@ -346,10 +487,14 @@ static void task_ble_streamer(void* arg) {
 // SETUP WiFi AP
 // -----------------------------------------------------------------------
 static void setupWiFi() {
-    WiFi.softAP(AP_SSID, AP_PASS);
+    WiFi.mode(WIFI_AP);
+    WiFi.onEvent(onWiFiEvent);
+    WiFi.setTxPower(WIFI_POWER_19_5dBm);   // max out radio power — weak battery + campus interference eat into range
+    WiFi.softAP(AP_SSID, AP_PASS, WIFI_CHANNEL);
     udp.begin(UDP_PORT);
-    Serial.printf("[WiFi] AP started. SSID: %s  IP: %s\n",
-                  AP_SSID, WiFi.softAPIP().toString().c_str());
+    Serial.printf("[WiFi] AP started. SSID: %s  IP: %s  Channel: %d  TxPower: %d\n",
+                  AP_SSID, WiFi.softAPIP().toString().c_str(), WIFI_CHANNEL, WiFi.getTxPower());
+    Serial.flush();
 }
 
 // -----------------------------------------------------------------------
@@ -387,6 +532,32 @@ void setup() {
     Serial.printf( "   CPU: %d MHz  |  Free heap: %.1f KB\n",
                    ESP.getCpuFreqMHz(), ESP.getFreeHeap() / 1024.0f);
     Serial.println("=======================================================");
+    Serial.flush();
+
+    if (!LittleFS.begin(true)) {
+        Serial.println("[FATAL] LittleFS mount failed — flash logging unavailable.");
+        Serial.flush();
+    }
+
+    // Retrieval mode: if someone sends a character within the window, dump
+    // + clear stored sessions and halt. Otherwise (untethered on battery,
+    // nothing to send a character) this times out harmlessly and recording
+    // proceeds normally below.
+    if (waitForDumpRequest(3000)) {
+        dumpAndClearSessions();
+        Serial.println("[BOOT] Reset without sending a character to start a new recording.");
+        while (true) { delay(1000); }
+    }
+
+    String sessionPath = nextSessionPath();
+    sessionFile = LittleFS.open(sessionPath, "w");
+    if (sessionFile) {
+        sessionFile.println("elapsed_ms,label,is_transition,activity_class,bpm,mean_mag,std_mag,peak_rel,peak_max");
+        Serial.printf("[FS] Recording this run to %s\n", sessionPath.c_str());
+    } else {
+        Serial.println("[FATAL] Could not open a session file — recording will not be saved to flash!");
+    }
+    Serial.flush();
 
     // Hardware
     pinMode(BUZZER_PIN, OUTPUT);
@@ -402,19 +573,25 @@ void setup() {
         ppgSensor.setup(30, 1, 2, 100, 411, 4096);
     }
     Serial.println("[OK]  Sensors initialized.");
+    Serial.flush();
 
     // Tạo mutex + queues
     i2c_mutex    = xSemaphoreCreateMutex();
+    buzzer_mutex = xSemaphoreCreateMutex();
     imu_queue    = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
     ppg_queue    = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
     output_queue = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
     Serial.println("[OK]  Queues created.");
+    Serial.flush();
 
     // WiFi AP + UDP (start before BLE for radio coexistence)
     setupWiFi();
+    Serial.flush();
 
-    // BLE
-    setupBLE();
+    // BLE disabled — testing whether BLE/WiFi radio coexistence was causing
+    // the WiFi AP disconnects. pStreamChar stays nullptr, so task_ble_streamer's
+    // notify() call is skipped automatically (already guarded).
+    // setupBLE();
 
     // Tạo 4 tasks
     //                         name           stack       arg  prio  handle
@@ -427,6 +604,7 @@ void setup() {
     Serial.println("[OK]  5 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",
                    ESP.getFreeHeap() / 1024.0f);
+    Serial.flush();
 }
 
 // -----------------------------------------------------------------------
