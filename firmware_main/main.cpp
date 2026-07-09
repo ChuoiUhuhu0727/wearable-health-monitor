@@ -8,7 +8,7 @@
 //  90s each) is driven by an internal timer and signaled with a buzzer.
 //  Data is retrieved afterward over USB with log_serial.py (repo root).
 //
-//  TASK ARCHITECTURE — 5 FreeRTOS tasks, communicating only through
+//  TASK ARCHITECTURE — 6 FreeRTOS tasks, communicating only through
 //  queues (no data in shared globals), so each runs at its own rate
 //  without blocking the others:
 //
@@ -20,13 +20,19 @@
 //                         BPM → output_queue
 //   task_ble_streamer   (priority 1, driven by classifier output) — writes
 //                         each result to the flash-backed session file
-//                         (THE permanent record); BLE/UDP output is
-//                         best-effort live view only, never required
+//                         (THE permanent record) FIRST, then best-effort
+//                         forwards it to telemetry_queue; BLE is disabled
 //   task_session_buzzer (priority 1) — the protocol's master timer: owns
 //                         currentSessionIndex/sessionStartMs, advances
 //                         through the 5 fixed activities every 90s, and
 //                         signals each transition with the buzzer
 //                         (3 beeps = next activity, 5 beeps = done)
+//   task_telemetry       (priority 1, Option 4) — drains telemetry_queue,
+//                         sends each packet to the Jetson over UDP (chosen
+//                         over HTTP — no connection state to lose, no
+//                         connect() step to hang on). Convenience/live-view
+//                         layer only — see udp_client.h, http_client.h (kept
+//                         but unused), and [[project-option4-jetson-plan]]
 //
 //  KEY DESIGN RULES:
 //    - No data in global variables shared between tasks — everything
@@ -57,6 +63,9 @@
 #include "esp_system.h"
 #include "MAX30105.h"
 #include "classifier.h"
+#include "http_client.h"   // Option 4 — HTTP telemetry. Kept intact but unused (see udp_client.h) —
+                            // not deleted, in case we switch back or want to compare.
+#include "udp_client.h"    // Option 4 — UDP telemetry, currently in use. Convenience layer only.
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -77,6 +86,7 @@
 #define IMU_Q_DEPTH    5
 #define PPG_Q_DEPTH    20        // PPG nhanh hơn IMU 4x nên buffer to hơn
 #define OUT_Q_DEPTH    3
+#define TELEMETRY_Q_DEPTH 5      // best-effort — full queue just drops oldest, never blocks the sender
 
 // BLE
 // Buzzer + session timer
@@ -106,6 +116,8 @@
 #define STACK_BLE    8192   // NimBLE stack cần nhiều hơn
 #define STACK_BUZZER 4096   // buzz()'s diagLog()/File::printf() calls need more than the
                              // original 2048 — too little caused a stack-canary crash
+#define STACK_TELEMETRY 6144 // HTTPClient is stack-hungry — sized generously from the
+                             // start on purpose, see [[project-option4-jetson-plan]] bug #3
 
 // -----------------------------------------------------------------------
 // DATA STRUCTURES — chỉ dùng để truyền qua queue
@@ -127,6 +139,23 @@ struct OutputResult {
     float peak_max;
 };
 
+// Option 4 — mirrors the CSV row schema plus live sensor-health fields.
+// `label` points at one of the static ACTIVITY_LABELS string literals, so
+// copying the pointer through the queue is safe (program-lifetime storage).
+struct TelemetryPacket {
+    unsigned long elapsedMs;
+    const char*   label;
+    int           isTransition;
+    int           activityClass;
+    float         bpm;
+    float         meanMag;
+    float         stdMag;
+    float         peakRel;
+    float         peakMax;
+    int           ppgOK;
+    unsigned long heap;
+};
+
 // -----------------------------------------------------------------------
 // QUEUE HANDLES VÀ MUTEX
 // (handles là global nhưng KHÔNG chứa data — đây là pattern đúng)
@@ -134,6 +163,7 @@ struct OutputResult {
 static QueueHandle_t     imu_queue;
 static QueueHandle_t     ppg_queue;
 static QueueHandle_t     output_queue;
+static QueueHandle_t     telemetry_queue;  // Option 4 — best-effort, decoupled from the flash-write path
 static SemaphoreHandle_t i2c_mutex;
 static SemaphoreHandle_t buzzer_mutex;   // task_session_buzzer + classifier watchdog both call tone() on BUZZER_PIN
 static SemaphoreHandle_t diag_mutex;     // guards diagFile writes from multiple tasks — separate from buzzer_mutex
@@ -520,6 +550,8 @@ static void task_ble_streamer(void* arg) {
         // Blocking — task chỉ thức khi có data
         if (xQueueReceive(output_queue, &result, portMAX_DELAY) == pdTRUE) {
 
+            bool isTransition = (millis() - sessionStartMs) < TRANSITION_MS;
+
             // Format JSON đơn giản — dễ parse ở Web BLE dashboard
             char payload[96];
             snprintf(payload, sizeof(payload),
@@ -536,14 +568,10 @@ static void task_ble_streamer(void* arg) {
                 pStreamChar->notify();
             }
 
-            // UDP stream → laptop running log_udp.py (best-effort live view only)
-            udp.beginPacket(UDP_BROADCAST, UDP_PORT);
-            udp.write((uint8_t*)payload, strlen(payload));
-            udp.endPacket();
-
-            // Flash log → the guaranteed record, independent of WiFi/BLE entirely
+            // Flash log → the guaranteed record, independent of WiFi/BLE entirely.
+            // Always happens BEFORE the Option 4 telemetry push below, so a
+            // WiFi/HTTP problem can never delay or skip the actual data record.
             if (sessionFile) {
-                bool isTransition = (millis() - sessionStartMs) < TRANSITION_MS;
                 sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f\n",
                                     millis(),
                                     ACTIVITY_LABELS[currentSessionIndex],
@@ -557,6 +585,17 @@ static void task_ble_streamer(void* arg) {
                 sessionFile.flush();
             }
 
+            // Option 4 — best-effort live telemetry (see task_telemetry).
+            // Non-blocking send: if the queue is full (task_telemetry falling
+            // behind, e.g. WiFi is down), this just drops the packet instead
+            // of waiting — fine, since the flash write above already happened.
+            TelemetryPacket pkt = {
+                millis(), ACTIVITY_LABELS[currentSessionIndex], (int)isTransition,
+                result.activity_class, result.bpm, result.mean_mag, result.std_mag,
+                result.peak_rel, result.peak_max, (int)ppgOK, (unsigned long)ESP.getFreeHeap()
+            };
+            xQueueSend(telemetry_queue, &pkt, 0);
+
             // Serial stream cho Serial Plotter / debug — guarded, see note above
             if (Serial) {
                 Serial.printf(">activity:%d|bpm:%.2f|heap:%lu|ppgOK:%d|ir:%ld\n",
@@ -566,6 +605,36 @@ static void task_ble_streamer(void* arg) {
                               (int)ppgOK,
                               lastIR);
             }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------
+// TASK 6: TELEMETRY (Option 4)
+// Drains telemetry_queue and pushes each packet to the Jetson over UDP.
+// Lowest priority, fully isolated from the sensing/recording path — if
+// WiFi is down or the Jetson is unreachable, this task just idles/drops
+// packets, and nothing else in the firmware is affected. See
+// firmware_main/udp_client.h for why UDP was chosen over HTTP and why
+// every call here is non-blocking by construction, not just bounded.
+// -----------------------------------------------------------------------
+static void task_telemetry(void* arg) {
+    TelemetryPacket pkt;
+    char json[256];   // worst-case field widths (10-digit millis/heap, "standing") ~200 bytes
+
+    while (true) {
+        if (xQueueReceive(telemetry_queue, &pkt, portMAX_DELAY) == pdTRUE) {
+            snprintf(json, sizeof(json),
+                     "{\"elapsed_ms\":%lu,\"label\":\"%s\",\"is_transition\":%d,"
+                     "\"activity_class\":%d,\"bpm\":%.2f,\"mean_mag\":%.1f,"
+                     "\"std_mag\":%.1f,\"peak_rel\":%.2f,\"peak_max\":%.1f,"
+                     "\"ppgOK\":%d,\"heap\":%lu}",
+                     pkt.elapsedMs, pkt.label, pkt.isTransition, pkt.activityClass,
+                     pkt.bpm, pkt.meanMag, pkt.stdMag, pkt.peakRel, pkt.peakMax,
+                     pkt.ppgOK, pkt.heap);
+
+            telemetrySendUDP(json);   // in use — see udp_client.h
+            // telemetryPush(json);   // HTTP alternative, kept but disabled — see http_client.h
         }
     }
 }
@@ -696,16 +765,20 @@ void setup() {
     Serial.flush();
 
     // Tạo mutex + queues
-    i2c_mutex    = xSemaphoreCreateMutex();
-    buzzer_mutex = xSemaphoreCreateMutex();
-    imu_queue    = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
-    ppg_queue    = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
-    output_queue = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
+    i2c_mutex       = xSemaphoreCreateMutex();
+    buzzer_mutex    = xSemaphoreCreateMutex();
+    imu_queue       = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
+    ppg_queue       = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
+    output_queue    = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
+    telemetry_queue = xQueueCreate(TELEMETRY_Q_DEPTH, sizeof(TelemetryPacket));
     Serial.println("[OK]  Queues created.");
     Serial.flush();
 
-    // WiFi AP + UDP (start before BLE for radio coexistence)
-    setupWiFi();
+    // Self-hosted AP disabled — replaced by Option 4 (WiFi station mode,
+    // connecting to a Jetson-hosted AP instead). See http_client.h.
+    // setupWiFi();
+    telemetryBeginWiFi();   // async — does not block if the Jetson isn't reachable
+    Serial.println("[WiFi] Connecting to Jetson AP (Option 4 telemetry)...");
     Serial.flush();
 
     // BLE disabled — testing whether BLE/WiFi radio coexistence was causing
@@ -713,15 +786,16 @@ void setup() {
     // notify() call is skipped automatically (already guarded).
     // setupBLE();
 
-    // Tạo 4 tasks
-    //                         name           stack       arg  prio  handle
-    xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU, nullptr, 3, nullptr);
-    xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG, nullptr, 3, nullptr);
-    xTaskCreate(task_classifier,    "classifier",    STACK_CLF, nullptr, 2, nullptr);
-    xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE, nullptr, 1, nullptr);
-    xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER, nullptr, 1, nullptr);
+    // Tạo 6 tasks
+    //                         name           stack            arg  prio  handle
+    xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU,      nullptr, 3, nullptr);
+    xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG,      nullptr, 3, nullptr);
+    xTaskCreate(task_classifier,    "classifier",    STACK_CLF,      nullptr, 2, nullptr);
+    xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE,      nullptr, 1, nullptr);
+    xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER,   nullptr, 1, nullptr);
+    xTaskCreate(task_telemetry,     "telemetry",     STACK_TELEMETRY,nullptr, 1, nullptr);
 
-    Serial.println("[OK]  5 FreeRTOS tasks created.");
+    Serial.println("[OK]  6 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",
                    ESP.getFreeHeap() / 1024.0f);
     Serial.flush();
