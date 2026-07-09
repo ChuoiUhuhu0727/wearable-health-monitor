@@ -1,18 +1,50 @@
 // =====================================================================
-//  WEARABLE ACTIVITY MONITOR — FreeRTOS Architecture v1
-//  Week 2 milestone: 4 tasks + queues + BLE advertising
+//  WEARABLE ACTIVITY & HEART-RATE MONITOR — FreeRTOS firmware
 //
-//  Kiến trúc:
-//   task_imu_reader  (priority 3) → imu_queue    → 25 Hz
-//    task_ppg_reader  (priority 3) → ppg_queue    → 100 Hz
-//    task_classifier  (priority 2) → output_queue → driven by IMU
-//    task_ble_streamer(priority 1) → BLE notify   → driven by output
+//  WHAT THIS DOES: reads motion (IMU) + heart-rate (PPG) sensors, classifies
+//  activity from the motion signal, and logs every result to onboard flash
+//  — fully untethered on battery, no live connection required to record.
+//  A fixed 5-activity protocol (lying/sitting/standing/walking/running,
+//  90s each) is driven by an internal timer and signaled with a buzzer.
+//  Data is retrieved afterward over USB with log_serial.py (repo root).
 //
-//  Rules:
-//    - Không có global variable chứa DATA giữa các task
-//    - Tất cả data đi qua queue
-//    - Không có delay() — chỉ dùng vTaskDelay / vTaskDelayUntil
-//    - I2C dùng chung mutex để tránh xung đột
+//  TASK ARCHITECTURE — 5 FreeRTOS tasks, communicating only through
+//  queues (no data in shared globals), so each runs at its own rate
+//  without blocking the others:
+//
+//   task_imu_reader     (priority 3, 25 Hz)   → imu_queue
+//   task_ppg_reader     (priority 3, 100 Hz)  → ppg_queue
+//   task_classifier     (priority 2, driven by IMU) — slides a window over
+//                         the accel data → features → activity class;
+//                         separately drains ppg_queue → beat detection →
+//                         BPM → output_queue
+//   task_ble_streamer   (priority 1, driven by classifier output) — writes
+//                         each result to the flash-backed session file
+//                         (THE permanent record); BLE/UDP output is
+//                         best-effort live view only, never required
+//   task_session_buzzer (priority 1) — the protocol's master timer: owns
+//                         currentSessionIndex/sessionStartMs, advances
+//                         through the 5 fixed activities every 90s, and
+//                         signals each transition with the buzzer
+//                         (3 beeps = next activity, 5 beeps = done)
+//
+//  KEY DESIGN RULES:
+//    - No data in global variables shared between tasks — everything
+//      goes through a queue.
+//    - No delay() — only vTaskDelay / vTaskDelayUntil (plain delay()
+//      blocks the whole core; these don't).
+//    - I2C is shared via a mutex to prevent bus contention between the
+//      two sensor-reading tasks.
+//    - Every Serial.print() in a hot loop is guarded with `if (Serial)` —
+//      with no USB host connected, unread USB-CDC output fills its buffer
+//      and further writes block forever, silently freezing whichever task
+//      called it. Found and fixed the hard way once already — see the
+//      guarded calls in task_classifier / task_ble_streamer below.
+//
+//  DIAGNOSTIC LOGGING: a separate flash file, /diag.log, records the reset
+//  reason on every boot (crash vs. clean power-on vs. brownout) and traces
+//  buzzer mutex/tone() calls step-by-step. Purely a debugging aid, not
+//  part of the actual dataset — see diagLog() below.
 // =====================================================================
 
 #include <Arduino.h>
@@ -22,6 +54,7 @@
 #include <WiFiUdp.h>
 #include <NimBLEDevice.h>
 #include <LittleFS.h>
+#include "esp_system.h"
 #include "MAX30105.h"
 #include "classifier.h"
 
@@ -71,6 +104,8 @@
 #define STACK_PPG    4096
 #define STACK_CLF    6144   // có windowBuffer[60] + beat detection state
 #define STACK_BLE    8192   // NimBLE stack cần nhiều hơn
+#define STACK_BUZZER 4096   // buzz()'s diagLog()/File::printf() calls need more than the
+                             // original 2048 — too little caused a stack-canary crash
 
 // -----------------------------------------------------------------------
 // DATA STRUCTURES — chỉ dùng để truyền qua queue
@@ -101,6 +136,8 @@ static QueueHandle_t     ppg_queue;
 static QueueHandle_t     output_queue;
 static SemaphoreHandle_t i2c_mutex;
 static SemaphoreHandle_t buzzer_mutex;   // task_session_buzzer + classifier watchdog both call tone() on BUZZER_PIN
+static SemaphoreHandle_t diag_mutex;     // guards diagFile writes from multiple tasks — separate from buzzer_mutex
+                                          // so logging inside a buzz() call never self-deadlocks
 
 // Order matches log_udp.py's ACTIVITY_LABELS — ascending intensity (warm-up/cool-down safety)
 static const char* ACTIVITY_LABELS[NUM_SESSIONS] = {
@@ -113,6 +150,7 @@ static volatile int           currentSessionIndex = 0;
 static volatile unsigned long sessionStartMs       = 0;
 
 static File sessionFile;   // open for the whole run, closed when the 5th session ends
+static File diagFile;      // open for the whole run — forensic log independent of USB/Serial
 
 // BLE characteristic handle — ghi bởi setup, đọc bởi ble_streamer
 static NimBLECharacteristic* pStreamChar = nullptr;
@@ -141,8 +179,42 @@ static String nextSessionPath() {
     return "/session_overflow.csv";   // shouldn't happen at normal batch sizes
 }
 
-// Prints every stored session file to Serial, then deletes it. Triggered
-// only when something is actually listening on boot (see waitForDumpRequest).
+// -----------------------------------------------------------------------
+// DIAGNOSTIC LOG (LittleFS) — /diag.log
+// Buzzer failures were happening silently when running untethered (no
+// Serial to print to). This logs to flash instead, which survives with
+// no USB connection at all. Logged before AND after every risky operation
+// (mutex take, tone() call) so that if something hangs, the last line in
+// the log tells you exactly which step never completed — not just that
+// something eventually went wrong.
+// -----------------------------------------------------------------------
+static const char* resetReasonStr(esp_reset_reason_t r) {
+    switch (r) {
+        case ESP_RST_POWERON:  return "POWERON";
+        case ESP_RST_EXT:      return "EXT_RESET (reset button / DTR toggle)";
+        case ESP_RST_SW:       return "SW_RESET";
+        case ESP_RST_PANIC:    return "PANIC (crash)";
+        case ESP_RST_INT_WDT:  return "INT_WDT";
+        case ESP_RST_TASK_WDT: return "TASK_WDT (a task never yielded — likely hang)";
+        case ESP_RST_WDT:      return "OTHER_WDT";
+        case ESP_RST_BROWNOUT: return "BROWNOUT (power dipped below threshold)";
+        default:               return "OTHER";
+    }
+}
+
+static void diagLog(const char* msg) {
+    if (!diagFile) return;
+    // Bounded wait — a stuck diagnostic write must never become its own hang.
+    if (xSemaphoreTake(diag_mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        diagFile.printf("%lu,%s\n", millis(), msg);
+        diagFile.flush();
+        xSemaphoreGive(diag_mutex);
+    }
+}
+
+// Prints every stored session file (and diag.log) to Serial, then deletes
+// them. Triggered only when something is actually listening on boot (see
+// waitForDumpRequest).
 static void dumpAndClearSessions() {
     Serial.println("\n===== SESSION DUMP START =====");
     bool any = false;
@@ -158,6 +230,22 @@ static void dumpAndClearSessions() {
         f.close();
         LittleFS.remove(path);
     }
+
+    if (LittleFS.exists("/diag.log")) {
+        any = true;
+        // diagFile (the boot-time global handle) is still open at this point —
+        // close it first, otherwise LittleFS refuses to unlink a file with an
+        // open FD and this entry silently survives into the next dump.
+        if (diagFile) diagFile.close();
+
+        File f = LittleFS.open("/diag.log", "r");
+        Serial.println("----- FILE: diag.log -----");
+        while (f.available()) Serial.write(f.read());
+        Serial.println("----- END: diag.log -----");
+        f.close();
+        LittleFS.remove("/diag.log");
+    }
+
     if (!any) Serial.println("(no stored sessions found)");
     Serial.println("===== SESSION DUMP END =====\n");
 }
@@ -190,32 +278,42 @@ static void initMPU6050() {
 }
 
 // -----------------------------------------------------------------------
-// TASK 1: IMU READER
-// Đọc gia tốc thô từ MPU6050 ở 25 Hz, đẩy vào imu_queue
-// -----------------------------------------------------------------------
-// -----------------------------------------------------------------------
-// TASK 5: SESSION BUZZER
-// Buzzes 3 times between activity sessions, 5 times when all done
+// TASK 5: SESSION BUZZER (also the protocol's master timer)
+// Advances currentSessionIndex/sessionStartMs through the 5 fixed
+// activities, 90s each. Buzzes 3 times between activities, 5 times when
+// the whole participant run is done. buzz() is also reused by
+// task_classifier's PPG-lost-contact watchdog below (single beep).
 // -----------------------------------------------------------------------
 static void buzz(int count, int freq, int on_ms, int off_ms) {
+    char msg[64];
     for (int i = 0; i < count; i++) {
+        snprintf(msg, sizeof(msg), "buzz: beep %d/%d freq=%d waiting for mutex", i + 1, count, freq);
+        diagLog(msg);
+
         // Bounded wait — if tone() ever hangs while holding this mutex, we skip
         // this beep instead of freezing the whole session-progression loop forever.
         if (xSemaphoreTake(buzzer_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+            diagLog("buzz: mutex acquired, calling tone()");
+
             // Manual on/off instead of tone()'s duration param — avoids relying
             // on its internal auto-stop timer, which is the suspected hang point.
             tone(BUZZER_PIN, freq);
             vTaskDelay(pdMS_TO_TICKS(on_ms));
             noTone(BUZZER_PIN);
+            diagLog("buzz: tone() cycle complete, releasing mutex");
             xSemaphoreGive(buzzer_mutex);
             vTaskDelay(pdMS_TO_TICKS(off_ms));
         } else {
+            diagLog("buzz: mutex TIMEOUT after 500ms, skipping this beep");
             vTaskDelay(pdMS_TO_TICKS(on_ms + off_ms));
         }
     }
 }
 
 static void task_session_buzzer(void* arg) {
+    buzz(3, 800, 200, 150);   // recording starts now (activity 1) — reverted to 800Hz
+                              // to test whether 4000Hz was the crash trigger, see diag.log findings
+
     for (int session = 0; session < NUM_SESSIONS; session++) {
         currentSessionIndex = session;
         sessionStartMs      = millis();
@@ -223,9 +321,9 @@ static void task_session_buzzer(void* arg) {
         vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
 
         if (session < NUM_SESSIONS - 1) {
-            buzz(3, 800, 200, 150);   // low pitch → next activity
+            buzz(3, 800, 200, 150);   // next activity — reverted to 800Hz, see note above
         } else {
-            buzz(5, 800, 500, 150);   // low pitch → participant done
+            buzz(5, 800, 500, 150);   // participant done — reverted to 800Hz, see note above
         }
     }
 
@@ -239,6 +337,10 @@ static void task_session_buzzer(void* arg) {
     vTaskDelete(nullptr);   // one participant per boot — done for this run
 }
 
+// -----------------------------------------------------------------------
+// TASK 1: IMU READER
+// Reads raw accelerometer from the MPU6050 at 25 Hz, pushes to imu_queue.
+// -----------------------------------------------------------------------
 static void task_imu_reader(void* arg) {
     TickType_t       xLastWakeTime = xTaskGetTickCount();
     const TickType_t xPeriod       = pdMS_TO_TICKS(1000 / IMU_HZ);  // 40 ms
@@ -345,7 +447,11 @@ static void task_classifier(void* arg) {
                 float acc_std  = sqrtf(sumVar / WINDOW_SIZE);
                 float peak_rel = (meanMag > 0.0f) ? (peak_max / meanMag) : 0.0f;
 
-                Serial.printf(">acc_std:%.1f|mean:%.1f\n", acc_std, meanMag);
+                // Guarded: without a connected USB host, unread USB-CDC output
+                // eventually fills its buffer and further Serial writes block
+                // forever — silently freezing this task (and anything waiting
+                // on a mutex it holds) when running untethered on battery.
+                if (Serial) Serial.printf(">acc_std:%.1f|mean:%.1f\n", acc_std, meanMag);
                 result.activity_class = (acc_std >= ACTIVITY_GATE)
                                       ? classifySignal(peak_max, acc_std, peak_rel)
                                       : 0;
@@ -393,20 +499,19 @@ static void task_classifier(void* arg) {
         if (gotPpg) {
             lastPpgMs = millis();
         } else if (millis() - lastPpgMs > 3000) {
-            if (xSemaphoreTake(buzzer_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
-                tone(BUZZER_PIN, 3000);   // high pitch warning
-                vTaskDelay(pdMS_TO_TICKS(300));
-                noTone(BUZZER_PIN);
-                xSemaphoreGive(buzzer_mutex);
-            }
+            diagLog("watchdog: PPG lost contact, firing warning beep");
+            buzz(1, 3000, 300, 0);        // single high-pitch warning beep
             lastPpgMs = millis();         // reset — warns again after 3s if still lost
         }
     }
 }
 
 // -----------------------------------------------------------------------
-// TASK 4: BLE STREAMER
-// Nhận OutputResult → gửi BLE notification
+// TASK 4: BLE STREAMER (name kept from an earlier version — its real job
+// now is the flash write below, which is THE guaranteed data record.
+// BLE is currently disabled in setup() — pStreamChar stays null, so the
+// notify() call is already a no-op. UDP and BLE are both best-effort
+// live view only, never required for the data to be saved.)
 // -----------------------------------------------------------------------
 static void task_ble_streamer(void* arg) {
     OutputResult result;
@@ -452,13 +557,15 @@ static void task_ble_streamer(void* arg) {
                 sessionFile.flush();
             }
 
-            // Serial stream cho Serial Plotter / debug
-            Serial.printf(">activity:%d|bpm:%.2f|heap:%lu|ppgOK:%d|ir:%ld\n",
-                          result.activity_class,
-                          result.bpm,
-                          (unsigned long)ESP.getFreeHeap(),
-                          (int)ppgOK,
-                          lastIR);
+            // Serial stream cho Serial Plotter / debug — guarded, see note above
+            if (Serial) {
+                Serial.printf(">activity:%d|bpm:%.2f|heap:%lu|ppgOK:%d|ir:%ld\n",
+                              result.activity_class,
+                              result.bpm,
+                              (unsigned long)ESP.getFreeHeap(),
+                              (int)ppgOK,
+                              lastIR);
+            }
         }
     }
 }
@@ -539,6 +646,19 @@ void setup() {
         Serial.flush();
     }
 
+    // diag_mutex + diagFile must exist before anything can call diagLog() —
+    // create/open them first, and log the reset reason for THIS boot before
+    // doing anything else, so every boot (including ones that turn out to
+    // crash later) leaves a record of how it started.
+    diag_mutex = xSemaphoreCreateMutex();
+    diagFile   = LittleFS.open("/diag.log", "a");
+    {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "BOOT reset_reason=%s heap=%lu",
+                 resetReasonStr(esp_reset_reason()), (unsigned long)ESP.getFreeHeap());
+        diagLog(msg);
+    }
+
     // Retrieval mode: if someone sends a character within the window, dump
     // + clear stored sessions and halt. Otherwise (untethered on battery,
     // nothing to send a character) this times out harmlessly and recording
@@ -599,7 +719,7 @@ void setup() {
     xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG, nullptr, 3, nullptr);
     xTaskCreate(task_classifier,    "classifier",    STACK_CLF, nullptr, 2, nullptr);
     xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE, nullptr, 1, nullptr);
-    xTaskCreate(task_session_buzzer,"session_buzzer",2048,      nullptr, 1, nullptr);
+    xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER, nullptr, 1, nullptr);
 
     Serial.println("[OK]  5 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",

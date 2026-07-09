@@ -33,8 +33,8 @@ RETRY_INTERVAL   = 0.2
 BPM_MIN, BPM_MAX = 40, 180      # outside this band (non-transition rows) = flag
 MIN_CLEAN_ROWS   = 50           # fewer clean rows than this for a label = flag
 
-FILE_START_RE = re.compile(r"----- FILE: (session_\d+\.csv) -----")
-FILE_END_RE   = re.compile(r"----- END: (session_\d+\.csv) -----")
+FILE_START_RE = re.compile(r"----- FILE: (\S+) -----")
+FILE_END_RE   = re.compile(r"----- END: (\S+) -----")
 
 
 def quality_check(local_path):
@@ -124,15 +124,19 @@ def main():
             continue
 
         if "SESSION DUMP END" in line:
-            print(f"\nDone. Retrieved {len(saved_paths)} session file(s).\n")
+            print(f"\nDone. Retrieved {len(saved_paths)} file(s).\n")
             for p in saved_paths:
-                quality_check(p)
+                if os.path.basename(p).startswith("session_"):
+                    quality_check(p)
+                else:
+                    print(f"  (skipping quality check for {os.path.basename(p)} — not a session file)")
             break
 
         m = FILE_START_RE.search(line)
         if m:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            current_path = os.path.join(OUTPUT_DIR, f"{m.group(1).replace('.csv', '')}_{timestamp}.csv")
+            name, ext = os.path.splitext(m.group(1))
+            current_path = os.path.join(OUTPUT_DIR, f"{name}_{timestamp}{ext}")
             current_file = open(current_path, "w", newline="")
             print(f"  -> saving to {current_path}")
             continue
