@@ -95,9 +95,19 @@ flash của thiết bị, không tự mất. Có thể thu nhiều người liê
 giữa mỗi người) rồi mới chạy `log_serial.py` một lần để lấy hết ra cùng lúc. Chỉ cần nhớ đừng
 để quá lâu — thiết bị chỉ chứa tối đa 20 lượt thu, quá số đó thì các lượt sau sẽ ghi đè lẫn nhau.
 
-Mỗi lượt thu được lưu thành 1 file CSV riêng có timestamp, trong `experiments/wrist/`, và
-script tự in luôn 1 bảng kiểm tra chất lượng (đếm số dòng, nhịp tim có bất thường không) để
-biết ngay có cần thu lại không.
+Mỗi lượt thu được lưu thành 1 file CSV riêng, trong `experiments/wrist/`, và script tự in
+luôn 1 bảng kiểm tra chất lượng (đếm số dòng, nhịp tim có bất thường không) để biết ngay có
+cần thu lại không.
+
+**Cách file được đặt tên:** `session_N_YYYYMMDD_HHMMSS.csv`, VD `session_1_20260710_142941.csv`.
+Tự động đặt, không cần tự gõ tên gì cả:
+- `N` — số thứ tự lượt thu **trên thiết bị**, tăng dần mỗi lần tắt/bật nguồn để thu người mới
+  (không phải số thứ tự do bạn chọn). Thu 3 người liên tiếp mà chưa lấy data ra thì sẽ ra
+  `session_1`, `session_2`, `session_3`.
+- `YYYYMMDD_HHMMSS` — thời điểm **lấy từng file ra** trong lúc chạy `log_serial.py`, không phải
+  lúc thu thật. Nếu để dồn nhiều lượt rồi mới lấy ra 1 lần, timestamp giữa các file sẽ xêm xêm
+  nhau (cách nhau vài giây, tùy lúc đó truyền xong file trước) chứ không hẳn trùng khớp — bình
+  thường, cứ nhìn số `N` để phân biệt từng lượt, đừng dựa vào timestamp.
 
 ## 6. Kiểm tra data trước khi gửi
 
