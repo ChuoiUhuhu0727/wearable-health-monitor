@@ -1,0 +1,21 @@
+408651,BOOT reset_reason=OTHER heap=326248
+67692,BOOT reset_reason=OTHER heap=326248
+70813,buzz: beep 1/3 freq=800 waiting for mutex
+70820,buzz: mutex acquired, calling tone()
+71022,buzz: tone() cycle complete, releasing mutex
+71178,buzz: beep 2/3 freq=800 waiting for mutex
+71184,buzz: mutex acquired, calling tone()
+71387,buzz: tone() cycle complete, releasing mutex
+71545,buzz: beep 3/3 freq=800 waiting for mutex
+71551,buzz: mutex acquired, calling tone()
+71874,buzz: tone() cycle complete, releasing mutex
+162032,buzz: beep 1/3 freq=800 waiting for mutex
+162131,buzz: mutex acquired, calling tone()
+162516,buzz: tone() cycle complete, releasing mutex
+162710,buzz: beep 2/3 freq=800 waiting for mutex
+162740,buzz: mutex acquired, calling tone()
+162974,buzz: tone() cycle complete, releasing mutex
+163157,buzz: beep 3/3 freq=800 waiting for mutex
+163189,buzz: mutex acquired, calling tone()
+163424,buzz: tone() cycle complete, releasing mutex
+2247,BOOT reset_reason=POWERON heap=326248

@@ -1,14 +1,32 @@
 // =====================================================================
-//  WEARABLE ACTIVITY & HEART-RATE MONITOR — FreeRTOS firmware
+//  WEARABLE ACTIVITY & HEART-RATE MONITOR — FreeRTOS firmware (BLE branch)
+//
+//  Forked from firmware_main/ on 2026-07-10. That branch (Option 4 —
+//  Jetson-hosted WiFi AP + UDP telemetry) is kept intact and untouched
+//  for whenever there's time to come back to it — see
+//  [[project-option4-jetson-plan]] and firmware_main/main.cpp.
+//
+//  This branch goes back to BLE — the original transport, less polished
+//  but proven stable. Known limitation: BLE range is short (data drops
+//  if the participant moves more than roughly a meter from the laptop),
+//  but that's an accepted tradeoff for something that reliably works
+//  right now, rather than continuing to debug the WiFi/Jetson setup.
 //
 //  WHAT THIS DOES: reads motion (IMU) + heart-rate (PPG) sensors, classifies
-//  activity from the motion signal, and logs every result to onboard flash
-//  — fully untethered on battery, no live connection required to record.
-//  A fixed 5-activity protocol (lying/sitting/standing/walking/running,
-//  90s each) is driven by an internal timer and signaled with a buzzer.
-//  Data is retrieved afterward over USB with log_serial.py (repo root).
+//  activity from the motion signal, and logs every result BOTH to onboard
+//  flash (the guaranteed record, works with zero connection at all) AND
+//  live over BLE notify (convenience/near-real-time view — same row
+//  schema as the flash CSV, so nothing needs a separate clock or label
+//  tracker on the laptop side; see log_ble.py, repo root).
 //
-//  TASK ARCHITECTURE — 6 FreeRTOS tasks, communicating only through
+//  A fixed 5-activity protocol (lying/sitting/standing/walking/running,
+//  90s each) is driven by an internal timer and signaled with a buzzer
+//  (currently disabled — see BUZZER_ENABLED below, inherited from the
+//  Option 4 branch where it was parked to isolate a different bug; the
+//  underlying "no audible sound when untethered" issue is unrelated to
+//  BLE vs WiFi and still unresolved either way).
+//
+//  TASK ARCHITECTURE — 5 FreeRTOS tasks, communicating only through
 //  queues (no data in shared globals), so each runs at its own rate
 //  without blocking the others:
 //
@@ -21,31 +39,22 @@
 //   task_ble_streamer   (priority 1, driven by classifier output) — writes
 //                         each result to the flash-backed session file
 //                         (THE permanent record) FIRST, then best-effort
-//                         forwards it to telemetry_queue; BLE is disabled
+//                         notifies the same row over BLE
 //   task_session_buzzer (priority 1) — the protocol's master timer: owns
 //                         currentSessionIndex/sessionStartMs, advances
 //                         through the 5 fixed activities every 90s, and
 //                         signals each transition with the buzzer
-//                         (3 beeps = next activity, 5 beeps = done)
-//   task_telemetry       (priority 1, Option 4) — drains telemetry_queue,
-//                         sends each packet to the Jetson over UDP (chosen
-//                         over HTTP — no connection state to lose, no
-//                         connect() step to hang on). Convenience/live-view
-//                         layer only — see udp_client.h, http_client.h (kept
-//                         but unused), and [[project-option4-jetson-plan]]
 //
-//  KEY DESIGN RULES:
+//  KEY DESIGN RULES (unchanged from firmware_main):
 //    - No data in global variables shared between tasks — everything
 //      goes through a queue.
-//    - No delay() — only vTaskDelay / vTaskDelayUntil (plain delay()
-//      blocks the whole core; these don't).
+//    - No delay() — only vTaskDelay / vTaskDelayUntil.
 //    - I2C is shared via a mutex to prevent bus contention between the
 //      two sensor-reading tasks.
 //    - Every Serial.print() in a hot loop is guarded with `if (Serial)` —
-//      with no USB host connected, unread USB-CDC output fills its buffer
-//      and further writes block forever, silently freezing whichever task
-//      called it. Found and fixed the hard way once already — see the
-//      guarded calls in task_classifier / task_ble_streamer below.
+//      without a connected USB host, unread USB-CDC output fills its
+//      buffer and further writes block forever, silently freezing
+//      whichever task called it.
 //
 //  DIAGNOSTIC LOGGING: a separate flash file, /diag.log, records the reset
 //  reason on every boot (crash vs. clean power-on vs. brownout) and traces
@@ -56,16 +65,11 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <math.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
 #include <NimBLEDevice.h>
 #include <LittleFS.h>
 #include "esp_system.h"
 #include "MAX30105.h"
 #include "classifier.h"
-#include "http_client.h"   // Option 4 — HTTP telemetry. Kept intact but unused (see udp_client.h) —
-                            // not deleted, in case we switch back or want to compare.
-#include "udp_client.h"    // Option 4 — UDP telemetry, currently in use. Convenience layer only.
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -86,9 +90,7 @@
 #define IMU_Q_DEPTH    5
 #define PPG_Q_DEPTH    20        // PPG nhanh hơn IMU 4x nên buffer to hơn
 #define OUT_Q_DEPTH    3
-#define TELEMETRY_Q_DEPTH 5      // best-effort — full queue just drops oldest, never blocks the sender
 
-// BLE
 // Buzzer + session timer
 #define BUZZER_PIN       3          // D2 on XIAO ESP32-S3
 #define SESSION_MS       90000      // 90 seconds per activity (15s transition + 75s clean)
@@ -98,35 +100,24 @@
 // Onboard flash logging (LittleFS) — untethered recording, retrieved later over Serial
 #define MAX_STORED_SESSIONS 20      // cap on how many participant runs can queue up before a dump
 
-// WiFi AP + UDP
-#define AP_SSID          "WearableCollector"
-#define AP_PASS          "wearable123"
-#define UDP_PORT         4210
-#define UDP_BROADCAST    "192.168.4.255"
-#define WIFI_CHANNEL     6     // 2.4GHz non-overlapping channels: 1, 6, 11 — retune if still congested
-
 #define BLE_DEVICE_NAME  "WearableMonitor"
 #define SVC_UUID         "AA10D001-0000-0000-0000-000000000001"
 #define CHAR_STREAM_UUID "AA10D002-0000-0000-0000-000000000001"
 
-// Temporarily disabled 2026-07-09 — buzzer audio was already an unresolved,
-// parked issue, and the PPG-lost-contact watchdog was firing every ~3-4s in
-// testing (see diag.log), adding frequent mutex/tone()/current-draw activity
-// while debugging the untethered WiFi/telemetry issue. Disabling isolates
-// that variable. Does NOT affect task_session_buzzer's activity-switching
-// timer, which keeps running normally — only the actual sound output is
-// skipped. Flip back to 1 to re-enable.
+// Inherited from the Option 4 branch, where it was set to 0 to isolate a
+// WiFi debugging variable. That reasoning doesn't apply here, but the
+// underlying "no audible sound when untethered" issue is a separate,
+// still-unresolved mystery either way — leaving it off by default so this
+// branch doesn't reopen that thread by accident. Flip to 1 to re-enable.
 #define BUZZER_ENABLED 0
 
-// Task stack sizes (bytes) — dựa trên dự đoán baseline
+// Task stack sizes (bytes)
 #define STACK_IMU    4096
 #define STACK_PPG    4096
 #define STACK_CLF    6144   // có windowBuffer[60] + beat detection state
 #define STACK_BLE    8192   // NimBLE stack cần nhiều hơn
-#define STACK_BUZZER 4096   // buzz()'s diagLog()/File::printf() calls need more than the
-                             // original 2048 — too little caused a stack-canary crash
-#define STACK_TELEMETRY 6144 // HTTPClient is stack-hungry — sized generously from the
-                             // start on purpose, see [[project-option4-jetson-plan]] bug #3
+#define STACK_BUZZER 4096   // buzz()'s diagLog()/File::printf() calls need more than a
+                             // bare-minimum stack — see firmware_main history for why
 
 // -----------------------------------------------------------------------
 // DATA STRUCTURES — chỉ dùng để truyền qua queue
@@ -148,23 +139,6 @@ struct OutputResult {
     float peak_max;
 };
 
-// Option 4 — mirrors the CSV row schema plus live sensor-health fields.
-// `label` points at one of the static ACTIVITY_LABELS string literals, so
-// copying the pointer through the queue is safe (program-lifetime storage).
-struct TelemetryPacket {
-    unsigned long elapsedMs;
-    const char*   label;
-    int           isTransition;
-    int           activityClass;
-    float         bpm;
-    float         meanMag;
-    float         stdMag;
-    float         peakRel;
-    float         peakMax;
-    int           ppgOK;
-    unsigned long heap;
-};
-
 // -----------------------------------------------------------------------
 // QUEUE HANDLES VÀ MUTEX
 // (handles là global nhưng KHÔNG chứa data — đây là pattern đúng)
@@ -172,19 +146,18 @@ struct TelemetryPacket {
 static QueueHandle_t     imu_queue;
 static QueueHandle_t     ppg_queue;
 static QueueHandle_t     output_queue;
-static QueueHandle_t     telemetry_queue;  // Option 4 — best-effort, decoupled from the flash-write path
 static SemaphoreHandle_t i2c_mutex;
 static SemaphoreHandle_t buzzer_mutex;   // task_session_buzzer + classifier watchdog both call tone() on BUZZER_PIN
 static SemaphoreHandle_t diag_mutex;     // guards diagFile writes from multiple tasks — separate from buzzer_mutex
                                           // so logging inside a buzz() call never self-deadlocks
 
-// Order matches log_udp.py's ACTIVITY_LABELS — ascending intensity (warm-up/cool-down safety)
+// Order matches log_ble.py's ACTIVITY_LABELS — ascending intensity (warm-up/cool-down safety)
 static const char* ACTIVITY_LABELS[NUM_SESSIONS] = {
     "lying", "sitting", "standing", "walking", "running"
 };
 
 // Current activity index + when it started — written by task_session_buzzer,
-// read by task_ble_streamer to label each row it writes to flash.
+// read by task_ble_streamer to label each row it writes to flash and BLE.
 static volatile int           currentSessionIndex = 0;
 static volatile unsigned long sessionStartMs       = 0;
 
@@ -193,9 +166,11 @@ static File diagFile;      // open for the whole run — forensic log independen
 
 // BLE characteristic handle — ghi bởi setup, đọc bởi ble_streamer
 static NimBLECharacteristic* pStreamChar = nullptr;
+static NimBLEServer*         pBleServer  = nullptr;   // needed by the advertising watchdog below
 
-// UDP socket — khởi tạo trong setup, dùng trong task_ble_streamer
-static WiFiUDP udp;
+// Forward declaration — defined near setupBLE() below, but called from
+// task_classifier, which appears earlier in the file.
+static void bleAdvertisingWatchdog();
 
 // -----------------------------------------------------------------------
 // SENSOR OBJECT (khởi tạo trong setup, dùng trong task_ppg_reader)
@@ -209,6 +184,7 @@ static long     lastIR = 0;   // most recent raw IR reading, for live debug prin
 // Each participant run gets its own /session_N.csv. Files persist across
 // power cycles, so multiple participants can be recorded back-to-back
 // fully untethered — retrieval happens later in one batch (see dump below).
+// This is the guaranteed record — unaffected by BLE range/dropouts.
 // -----------------------------------------------------------------------
 static String nextSessionPath() {
     for (int n = 1; n <= MAX_STORED_SESSIONS; n++) {
@@ -220,12 +196,10 @@ static String nextSessionPath() {
 
 // -----------------------------------------------------------------------
 // DIAGNOSTIC LOG (LittleFS) — /diag.log
-// Buzzer failures were happening silently when running untethered (no
-// Serial to print to). This logs to flash instead, which survives with
-// no USB connection at all. Logged before AND after every risky operation
-// (mutex take, tone() call) so that if something hangs, the last line in
-// the log tells you exactly which step never completed — not just that
-// something eventually went wrong.
+// Logs to flash instead of Serial, which survives with no USB connection
+// at all. Logged before AND after every risky operation (mutex take,
+// tone() call) so that if something hangs, the last line in the log
+// tells you exactly which step never completed.
 // -----------------------------------------------------------------------
 static const char* resetReasonStr(esp_reset_reason_t r) {
     switch (r) {
@@ -238,24 +212,6 @@ static const char* resetReasonStr(esp_reset_reason_t r) {
         case ESP_RST_WDT:      return "OTHER_WDT";
         case ESP_RST_BROWNOUT: return "BROWNOUT (power dipped below threshold)";
         default:               return "OTHER";
-    }
-}
-
-// Added 2026-07-09 — diag.log had no visibility into WiFi connection state,
-// making it impossible to tell "WiFi never connected" apart from "connected
-// fine, packets just aren't reaching the Jetson" during untethered testing.
-// Logged only on state CHANGE (see task_telemetry), not every check, to
-// keep the log readable.
-static const char* wifiStatusStr(wl_status_t s) {
-    switch (s) {
-        case WL_IDLE_STATUS:     return "IDLE (not yet attempted)";
-        case WL_NO_SSID_AVAIL:   return "NO_SSID_AVAIL (hotspot not visible — is it up? SSID match?)";
-        case WL_SCAN_COMPLETED:  return "SCAN_COMPLETED";
-        case WL_CONNECTED:       return "CONNECTED";
-        case WL_CONNECT_FAILED:  return "CONNECT_FAILED (likely wrong password)";
-        case WL_CONNECTION_LOST: return "CONNECTION_LOST";
-        case WL_DISCONNECTED:    return "DISCONNECTED";
-        default:                 return "UNKNOWN";
     }
 }
 
@@ -290,9 +246,6 @@ static void dumpAndClearSessions() {
 
     if (LittleFS.exists("/diag.log")) {
         any = true;
-        // diagFile (the boot-time global handle) is still open at this point —
-        // close it first, otherwise LittleFS refuses to unlink a file with an
-        // open FD and this entry silently survives into the next dump.
         if (diagFile) diagFile.close();
 
         File f = LittleFS.open("/diag.log", "r");
@@ -343,7 +296,7 @@ static void initMPU6050() {
 // -----------------------------------------------------------------------
 static void buzz(int count, int freq, int on_ms, int off_ms) {
 #if !BUZZER_ENABLED
-    return;   // buzzer temporarily disabled — see BUZZER_ENABLED, no mutex/tone()/diag.log activity at all
+    return;   // buzzer disabled — see BUZZER_ENABLED at top of file
 #endif
     char msg[64];
     for (int i = 0; i < count; i++) {
@@ -371,8 +324,7 @@ static void buzz(int count, int freq, int on_ms, int off_ms) {
 }
 
 static void task_session_buzzer(void* arg) {
-    buzz(3, 800, 200, 150);   // recording starts now (activity 1) — reverted to 800Hz
-                              // to test whether 4000Hz was the crash trigger, see diag.log findings
+    buzz(3, 800, 200, 150);   // recording starts now (activity 1)
 
     for (int session = 0; session < NUM_SESSIONS; session++) {
         currentSessionIndex = session;
@@ -381,9 +333,9 @@ static void task_session_buzzer(void* arg) {
         vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
 
         if (session < NUM_SESSIONS - 1) {
-            buzz(3, 800, 200, 150);   // next activity — reverted to 800Hz, see note above
+            buzz(3, 800, 200, 150);   // next activity
         } else {
-            buzz(5, 800, 500, 150);   // participant done — reverted to 800Hz, see note above
+            buzz(5, 800, 500, 150);   // participant done
         }
     }
 
@@ -509,8 +461,7 @@ static void task_classifier(void* arg) {
 
                 // Guarded: without a connected USB host, unread USB-CDC output
                 // eventually fills its buffer and further Serial writes block
-                // forever — silently freezing this task (and anything waiting
-                // on a mutex it holds) when running untethered on battery.
+                // forever — silently freezing this task when running untethered.
                 if (Serial) Serial.printf(">acc_std:%.1f|mean:%.1f\n", acc_std, meanMag);
                 result.activity_class = (acc_std >= ACTIVITY_GATE)
                                       ? classifySignal(peak_max, acc_std, peak_rel)
@@ -563,15 +514,22 @@ static void task_classifier(void* arg) {
             buzz(1, 3000, 300, 0);        // single high-pitch warning beep
             lastPpgMs = millis();         // reset — warns again after 3s if still lost
         }
+
+        // --- D. BLE advertising watchdog — see bleAdvertisingWatchdog() ---
+        // Runs on this task's reliable ~40-60ms cycle, rate-limited to once
+        // per 5s internally, independent of sensor/BLE state.
+        bleAdvertisingWatchdog();
     }
 }
 
 // -----------------------------------------------------------------------
-// TASK 4: BLE STREAMER (name kept from an earlier version — its real job
-// now is the flash write below, which is THE guaranteed data record.
-// BLE is currently disabled in setup() — pStreamChar stays null, so the
-// notify() call is already a no-op. UDP and BLE are both best-effort
-// live view only, never required for the data to be saved.)
+// TASK 4: BLE STREAMER
+// Writes each result to flash FIRST (the guaranteed record, unaffected by
+// BLE range/dropouts), then best-effort notifies the SAME row over BLE.
+// The BLE payload now carries the full row (elapsed_ms/label/is_transition
+// included) so the laptop-side script (log_ble.py) doesn't need its own
+// clock or activity tracker — it just records whatever the device says,
+// eliminating the dual-clock-drift risk the original BLE version had.
 // -----------------------------------------------------------------------
 static void task_ble_streamer(void* arg) {
     OutputResult result;
@@ -581,29 +539,14 @@ static void task_ble_streamer(void* arg) {
         if (xQueueReceive(output_queue, &result, portMAX_DELAY) == pdTRUE) {
 
             bool isTransition = (millis() - sessionStartMs) < TRANSITION_MS;
+            unsigned long nowMs = millis();
 
-            // Format JSON đơn giản — dễ parse ở Web BLE dashboard
-            char payload[96];
-            snprintf(payload, sizeof(payload),
-                     "{\"a\":%d,\"bpm\":%.1f,\"mean\":%.1f,\"std\":%.1f,\"pr\":%.2f,\"pm\":%.1f}",
-                     result.activity_class,
-                     result.bpm,
-                     result.mean_mag,
-                     result.std_mag,
-                     result.peak_rel,
-                     result.peak_max);
-
-            if (pStreamChar != nullptr) {
-                pStreamChar->setValue((uint8_t*)payload, strlen(payload));
-                pStreamChar->notify();
-            }
-
-            // Flash log → the guaranteed record, independent of WiFi/BLE entirely.
-            // Always happens BEFORE the Option 4 telemetry push below, so a
-            // WiFi/HTTP problem can never delay or skip the actual data record.
+            // Flash log → the guaranteed record, independent of BLE entirely.
+            // Always happens BEFORE the BLE notify below, so a BLE range
+            // problem can never delay or skip the actual data record.
             if (sessionFile) {
                 sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f\n",
-                                    millis(),
+                                    nowMs,
                                     ACTIVITY_LABELS[currentSessionIndex],
                                     (int)isTransition,
                                     result.activity_class,
@@ -615,16 +558,32 @@ static void task_ble_streamer(void* arg) {
                 sessionFile.flush();
             }
 
-            // Option 4 — best-effort live telemetry (see task_telemetry).
-            // Non-blocking send: if the queue is full (task_telemetry falling
-            // behind, e.g. WiFi is down), this just drops the packet instead
-            // of waiting — fine, since the flash write above already happened.
-            TelemetryPacket pkt = {
-                millis(), ACTIVITY_LABELS[currentSessionIndex], (int)isTransition,
-                result.activity_class, result.bpm, result.mean_mag, result.std_mag,
-                result.peak_rel, result.peak_max, (int)ppgOK, (unsigned long)ESP.getFreeHeap()
-            };
-            xQueueSend(telemetry_queue, &pkt, 0);
+            // BLE notify — best-effort live view, same row schema as flash.
+            // setValue()/notify() don't block waiting for a connected client;
+            // if nothing's subscribed or the client is out of range, this is
+            // effectively a no-op (NimBLE handles that internally).
+            if (pStreamChar != nullptr) {
+                // Computed here (device is the single source of truth for
+                // timing, same reasoning as elapsed_ms/label/is_transition
+                // above) so log_ble.py never needs its own clock to predict
+                // an upcoming switch — it just displays what the device says.
+                long msIntoSession = (long)nowMs - (long)sessionStartMs;
+                int  secondsLeft   = (int)((SESSION_MS - msIntoSession) / 1000);
+                if (secondsLeft < 0) secondsLeft = 0;
+
+                char payload[200];
+                snprintf(payload, sizeof(payload),
+                         "{\"elapsed_ms\":%lu,\"label\":\"%s\",\"is_transition\":%d,"
+                         "\"activity_class\":%d,\"bpm\":%.2f,\"mean_mag\":%.1f,"
+                         "\"std_mag\":%.1f,\"peak_rel\":%.2f,\"peak_max\":%.1f,"
+                         "\"ppgOK\":%d,\"seconds_left\":%d}",
+                         nowMs, ACTIVITY_LABELS[currentSessionIndex], (int)isTransition,
+                         result.activity_class, result.bpm, result.mean_mag,
+                         result.std_mag, result.peak_rel, result.peak_max,
+                         (int)ppgOK, secondsLeft);
+                pStreamChar->setValue((uint8_t*)payload, strlen(payload));
+                pStreamChar->notify();
+            }
 
             // Serial stream cho Serial Plotter / debug — guarded, see note above
             if (Serial) {
@@ -640,91 +599,44 @@ static void task_ble_streamer(void* arg) {
 }
 
 // -----------------------------------------------------------------------
-// TASK 6: TELEMETRY (Option 4)
-// Drains telemetry_queue and pushes each packet to the Jetson over UDP.
-// Lowest priority, fully isolated from the sensing/recording path — if
-// WiFi is down or the Jetson is unreachable, this task just idles/drops
-// packets, and nothing else in the firmware is affected. See
-// firmware_main/udp_client.h for why UDP was chosen over HTTP and why
-// every call here is non-blocking by construction, not just bounded.
+// BLE CONNECTION LOGGING
+// Root-cause fix (2026-07-10): NimBLE stops advertising once a central
+// connects, and does NOT resume automatically on disconnect — without
+// explicitly restarting it here, the device becomes permanently
+// undiscoverable after the very first BLE disconnect, no matter how many
+// times the laptop re-scans. This is very likely why reconnection was
+// failing 100% of the time rather than intermittently. Also logs to
+// diag.log (and Serial, if connected) so a future dropout can be
+// confirmed as a real range/RF event rather than guessed at.
 // -----------------------------------------------------------------------
-static void task_telemetry(void* arg) {
-    TelemetryPacket pkt;
-    char json[256];   // worst-case field widths (10-digit millis/heap, "standing") ~200 bytes
-    wl_status_t lastWifiStatus = (wl_status_t)-1;   // impossible value — forces the first log line
-
-    while (true) {
-        if (xQueueReceive(telemetry_queue, &pkt, portMAX_DELAY) == pdTRUE) {
-
-            // Log only on state change, not every packet — this task wakes
-            // roughly every ~400ms whenever the classifier produces output,
-            // regardless of WiFi state, so logging unconditionally here
-            // would flood diag.log. State changes are what we actually need
-            // to see: did it ever reach CONNECTED, and did it ever drop?
-            wl_status_t currentWifiStatus = WiFi.status();
-            if (currentWifiStatus != lastWifiStatus) {
-                char msg[64];
-                snprintf(msg, sizeof(msg), "telemetry: WiFi status -> %s", wifiStatusStr(currentWifiStatus));
-                diagLog(msg);
-                lastWifiStatus = currentWifiStatus;
-            }
-
-            snprintf(json, sizeof(json),
-                     "{\"elapsed_ms\":%lu,\"label\":\"%s\",\"is_transition\":%d,"
-                     "\"activity_class\":%d,\"bpm\":%.2f,\"mean_mag\":%.1f,"
-                     "\"std_mag\":%.1f,\"peak_rel\":%.2f,\"peak_max\":%.1f,"
-                     "\"ppgOK\":%d,\"heap\":%lu}",
-                     pkt.elapsedMs, pkt.label, pkt.isTransition, pkt.activityClass,
-                     pkt.bpm, pkt.meanMag, pkt.stdMag, pkt.peakRel, pkt.peakMax,
-                     pkt.ppgOK, pkt.heap);
-
-            telemetrySendUDP(json);   // in use — see udp_client.h
-            // telemetryPush(json);   // HTTP alternative, kept but disabled — see http_client.h
-        }
+class WearableServerCallbacks : public NimBLEServerCallbacks {
+    void onConnect(NimBLEServer* pServer) {
+        diagLog("BLE: client connected");
+        if (Serial) Serial.println("[BLE] Client connected.");
     }
-}
-
-// -----------------------------------------------------------------------
-// WiFi CONNECTION STABILITY LOGGING
-// In prints every join/drop event with a timestamp, so connection drops
-// show up in the log instead of just silently missing rows.
-// -----------------------------------------------------------------------
-static void onWiFiEvent(WiFiEvent_t event) {
-    switch (event) {
-        case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
-            Serial.printf("[WiFi] +CONNECT   t=%lums  stations=%d\n",
-                          millis(), WiFi.softAPgetStationNum());
-            break;
-        case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
-            Serial.printf("[WiFi] -DISCONNECT t=%lums  stations=%d\n",
-                          millis(), WiFi.softAPgetStationNum());
-            break;
-        default:
-            break;
+    void onDisconnect(NimBLEServer* pServer) {
+        diagLog("BLE: client disconnected, restarting advertising");
+        if (Serial) Serial.println("[BLE] Client disconnected — restarting advertising.");
+        // startAdvertising() returns bool — checking it, not discarding it,
+        // is the whole point: if THIS call silently fails too, we'd be back
+        // to square one with no way to tell. Log either outcome explicitly.
+        bool ok = NimBLEDevice::startAdvertising();
+        diagLog(ok ? "BLE: advertising restarted OK"
+                   : "BLE: advertising restart FAILED — device will stay undiscoverable "
+                     "until the periodic watchdog catches it (see task_classifier)");
     }
-}
-
-// -----------------------------------------------------------------------
-// SETUP WiFi AP
-// -----------------------------------------------------------------------
-static void setupWiFi() {
-    WiFi.mode(WIFI_AP);
-    WiFi.onEvent(onWiFiEvent);
-    WiFi.setTxPower(WIFI_POWER_19_5dBm);   // max out radio power — weak battery + campus interference eat into range
-    WiFi.softAP(AP_SSID, AP_PASS, WIFI_CHANNEL);
-    udp.begin(UDP_PORT);
-    Serial.printf("[WiFi] AP started. SSID: %s  IP: %s  Channel: %d  TxPower: %d\n",
-                  AP_SSID, WiFi.softAPIP().toString().c_str(), WIFI_CHANNEL, WiFi.getTxPower());
-    Serial.flush();
-}
+};
 
 // -----------------------------------------------------------------------
 // SETUP BLE
 // -----------------------------------------------------------------------
 static void setupBLE() {
     NimBLEDevice::init(BLE_DEVICE_NAME);
-    NimBLEServer*  pServer  = NimBLEDevice::createServer();
-    NimBLEService* pService = pServer->createService(SVC_UUID);
+    pBleServer = NimBLEDevice::createServer();
+    static WearableServerCallbacks serverCallbacks;
+    pBleServer->setCallbacks(&serverCallbacks);
+
+    NimBLEService* pService = pBleServer->createService(SVC_UUID);
 
     pStreamChar = pService->createCharacteristic(
         CHAR_STREAM_UUID,
@@ -736,9 +648,41 @@ static void setupBLE() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SVC_UUID);
     pAdv->setScanResponse(true);
-    pAdv->start();
+    bool advOk = pAdv->start();   // checked, not discarded — see WearableServerCallbacks note
 
     Serial.println("[BLE] Advertising: " BLE_DEVICE_NAME);
+    {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "BLE: initial advertising start %s", advOk ? "OK" : "FAILED");
+        diagLog(msg);
+    }
+}
+
+// -----------------------------------------------------------------------
+// BLE ADVERTISING WATCHDOG
+// Defense in depth beyond the onDisconnect() restart above: periodically
+// (every ~5s, checked from task_classifier so it runs on a reliable cycle
+// independent of BLE/sensor state) confirms the device is either connected
+// or actively advertising. If it's neither — e.g. the onDisconnect restart
+// itself silently failed — this catches it and tries again, rather than
+// leaving the device permanently invisible for the rest of the session.
+// -----------------------------------------------------------------------
+static void bleAdvertisingWatchdog() {
+    static unsigned long lastCheckMs = 0;
+    unsigned long nowMs = millis();
+    if (nowMs - lastCheckMs < 5000) return;
+    lastCheckMs = nowMs;
+
+    if (!pBleServer) return;   // BLE not initialized yet
+    bool connected    = pBleServer->getConnectedCount() > 0;
+    bool advertising  = NimBLEDevice::getAdvertising()->isAdvertising();
+
+    if (!connected && !advertising) {
+        diagLog("BLE watchdog: not connected AND not advertising — forcing restart");
+        bool ok = NimBLEDevice::startAdvertising();
+        diagLog(ok ? "BLE watchdog: advertising restarted OK"
+                   : "BLE watchdog: restart FAILED again — will retry in 5s");
+    }
 }
 
 // -----------------------------------------------------------------------
@@ -749,7 +693,7 @@ void setup() {
     delay(2000);
 
     Serial.println("\n=======================================================");
-    Serial.println("   WEARABLE MONITOR — FreeRTOS v1");
+    Serial.println("   WEARABLE MONITOR — FreeRTOS (BLE branch)");
     Serial.printf( "   CPU: %d MHz  |  Free heap: %.1f KB\n",
                    ESP.getCpuFreqMHz(), ESP.getFreeHeap() / 1024.0f);
     Serial.println("=======================================================");
@@ -810,37 +754,26 @@ void setup() {
     Serial.flush();
 
     // Tạo mutex + queues
-    i2c_mutex       = xSemaphoreCreateMutex();
-    buzzer_mutex    = xSemaphoreCreateMutex();
-    imu_queue       = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
-    ppg_queue       = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
-    output_queue    = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
-    telemetry_queue = xQueueCreate(TELEMETRY_Q_DEPTH, sizeof(TelemetryPacket));
+    i2c_mutex    = xSemaphoreCreateMutex();
+    buzzer_mutex = xSemaphoreCreateMutex();
+    imu_queue    = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
+    ppg_queue    = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
+    output_queue = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
     Serial.println("[OK]  Queues created.");
     Serial.flush();
 
-    // Self-hosted AP disabled — replaced by Option 4 (WiFi station mode,
-    // connecting to a Jetson-hosted AP instead). See http_client.h.
-    // setupWiFi();
-    telemetryBeginWiFi();   // async — does not block if the Jetson isn't reachable
-    Serial.println("[WiFi] Connecting to Jetson AP (Option 4 telemetry)...");
+    setupBLE();
     Serial.flush();
 
-    // BLE disabled — testing whether BLE/WiFi radio coexistence was causing
-    // the WiFi AP disconnects. pStreamChar stays nullptr, so task_ble_streamer's
-    // notify() call is skipped automatically (already guarded).
-    // setupBLE();
+    // Tạo 5 tasks
+    //                         name           stack       arg  prio  handle
+    xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU,    nullptr, 3, nullptr);
+    xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG,    nullptr, 3, nullptr);
+    xTaskCreate(task_classifier,    "classifier",    STACK_CLF,    nullptr, 2, nullptr);
+    xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE,    nullptr, 1, nullptr);
+    xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER, nullptr, 1, nullptr);
 
-    // Tạo 6 tasks
-    //                         name           stack            arg  prio  handle
-    xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU,      nullptr, 3, nullptr);
-    xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG,      nullptr, 3, nullptr);
-    xTaskCreate(task_classifier,    "classifier",    STACK_CLF,      nullptr, 2, nullptr);
-    xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE,      nullptr, 1, nullptr);
-    xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER,   nullptr, 1, nullptr);
-    xTaskCreate(task_telemetry,     "telemetry",     STACK_TELEMETRY,nullptr, 1, nullptr);
-
-    Serial.println("[OK]  6 FreeRTOS tasks created.");
+    Serial.println("[OK]  5 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",
                    ESP.getFreeHeap() / 1024.0f);
     Serial.flush();

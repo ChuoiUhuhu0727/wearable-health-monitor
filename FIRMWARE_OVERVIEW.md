@@ -7,6 +7,15 @@ sensors in real time, classifies activity from the motion signal, and logs
 fully untethered on battery, with no phone or laptop required during recording.
 Data is pulled off later over USB with a retrieval script.
 
+**Note on branches (as of 2026-07-10):** this document describes `firmware_main/`,
+which uses Option 4 (a Jetson-hosted WiFi AP + UDP live telemetry) — that work is
+parked, not abandoned, mid-way through debugging an untethered connectivity issue.
+The team has switched to `firmware_ble/` for actual data collection in the meantime
+— a simpler, previously-proven-stable branch using BLE instead of WiFi (shorter
+range, but no Jetson/hotspot infrastructure required). Same sensor/classifier/flash
+pipeline, same session protocol — only the live-view transport differs. See
+`firmware_ble/main.cpp`'s own header comment and `log_ble.py` (repo root).
+
 ## Task architecture
 
 Six FreeRTOS tasks, communicating only through queues (no shared globals holding
@@ -138,13 +147,16 @@ cleared alongside session files by the same `log_serial.py` run.
 
 | File | Purpose |
 | :--- | :--- |
-| `firmware_main/main.cpp` | All firmware logic described above |
-| `firmware_main/classifier.h` | The trained activity decision-tree function |
+| `firmware_main/main.cpp` | All firmware logic described above (Option 4 / WiFi branch, parked) |
+| `firmware_ble/main.cpp` | Active data-collection branch — same pipeline, BLE instead of WiFi |
+| `firmware_main/classifier.h`, `firmware_ble/classifier.h` | The trained activity decision-tree function |
 | `firmware_main/udp_client.h` | Option 4 — UDP telemetry helper, in use |
 | `firmware_main/http_client.h` | Option 4 — HTTP telemetry helper, kept but unused |
 | `jetson_server/udp_server.py` | Option 4 — Jetson-side UDP receiver + live console/log output, in use |
 | `jetson_server/server.py` | Option 4 — Jetson-side HTTP receiver, kept but unused |
 | `jetson_server/setup_ap.md` | Option 4 — one-time Jetson WiFi AP setup instructions |
 | `OBSERVATION_CHECKLIST.md` | What to watch for while testing Option 4 — silent-failure points, task-concurrency risks, hardware→software layers |
-| `log_serial.py` | Laptop-side retrieval + data-quality-check script |
+| `log_serial.py` | Laptop-side retrieval + data-quality-check script (works for both branches — flash schema is identical) |
+| `log_ble.py` | Laptop-side live view over BLE (`firmware_ble/` only) — countdown/next-activity/sensor warnings, auto-reconnect |
+| `visualize_session.py` | Plots a retrieved session CSV (BPM + motion, shaded by activity) so you can eyeball whether it's valid before training on it |
 | `TEAMMATE_SETUP.md` | Step-by-step instructions for a collaborator to record a participant |

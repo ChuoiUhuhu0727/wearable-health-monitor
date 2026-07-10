@@ -1,0 +1,1366 @@
+43341,BOOT reset_reason=POWERON heap=326248
+46344,BOOT reset_reason=POWERON heap=326184
+45060,BOOT reset_reason=OTHER heap=326184
+48268,buzz: beep 1/3 freq=800 waiting for mutex
+48432,buzz: mutex acquired, calling tone()
+48641,buzz: tone() cycle complete, releasing mutex
+48802,buzz: beep 2/3 freq=800 waiting for mutex
+48812,buzz: mutex acquired, calling tone()
+49022,buzz: tone() cycle complete, releasing mutex
+49185,buzz: beep 3/3 freq=800 waiting for mutex
+49196,buzz: mutex acquired, calling tone()
+49407,buzz: tone() cycle complete, releasing mutex
+51271,watchdog: PPG lost contact, firing warning beep
+51312,buzz: beep 1/1 freq=3000 waiting for mutex
+51348,buzz: mutex acquired, calling tone()
+51685,buzz: tone() cycle complete, releasing mutex
+55034,watchdog: PPG lost contact, firing warning beep
+55094,buzz: beep 1/1 freq=3000 waiting for mutex
+55136,buzz: mutex acquired, calling tone()
+55477,buzz: tone() cycle complete, releasing mutex
+58549,watchdog: PPG lost contact, firing warning beep
+58592,buzz: beep 1/1 freq=3000 waiting for mutex
+58632,buzz: mutex acquired, calling tone()
+58971,buzz: tone() cycle complete, releasing mutex
+62042,watchdog: PPG lost contact, firing warning beep
+62083,buzz: beep 1/1 freq=3000 waiting for mutex
+62126,buzz: mutex acquired, calling tone()
+62467,buzz: tone() cycle complete, releasing mutex
+65548,watchdog: PPG lost contact, firing warning beep
+65594,buzz: beep 1/1 freq=3000 waiting for mutex
+65640,buzz: mutex acquired, calling tone()
+65987,buzz: tone() cycle complete, releasing mutex
+69067,watchdog: PPG lost contact, firing warning beep
+69115,buzz: beep 1/1 freq=3000 waiting for mutex
+69164,buzz: mutex acquired, calling tone()
+69508,buzz: tone() cycle complete, releasing mutex
+72596,watchdog: PPG lost contact, firing warning beep
+72644,buzz: beep 1/1 freq=3000 waiting for mutex
+72691,buzz: mutex acquired, calling tone()
+73040,buzz: tone() cycle complete, releasing mutex
+76115,watchdog: PPG lost contact, firing warning beep
+76166,buzz: beep 1/1 freq=3000 waiting for mutex
+76319,buzz: mutex acquired, calling tone()
+76670,buzz: tone() cycle complete, releasing mutex
+79755,watchdog: PPG lost contact, firing warning beep
+79863,buzz: beep 1/1 freq=3000 waiting for mutex
+79921,buzz: mutex acquired, calling tone()
+80271,buzz: tone() cycle complete, releasing mutex
+83327,watchdog: PPG lost contact, firing warning beep
+83386,buzz: beep 1/1 freq=3000 waiting for mutex
+83432,buzz: mutex acquired, calling tone()
+83782,buzz: tone() cycle complete, releasing mutex
+86834,watchdog: PPG lost contact, firing warning beep
+86888,buzz: beep 1/1 freq=3000 waiting for mutex
+86938,buzz: mutex acquired, calling tone()
+87288,buzz: tone() cycle complete, releasing mutex
+90352,watchdog: PPG lost contact, firing warning beep
+90409,buzz: beep 1/1 freq=3000 waiting for mutex
+90464,buzz: mutex acquired, calling tone()
+90815,buzz: tone() cycle complete, releasing mutex
+93871,watchdog: PPG lost contact, firing warning beep
+93925,buzz: beep 1/1 freq=3000 waiting for mutex
+93984,buzz: mutex acquired, calling tone()
+94343,buzz: tone() cycle complete, releasing mutex
+97430,watchdog: PPG lost contact, firing warning beep
+97488,buzz: beep 1/1 freq=3000 waiting for mutex
+97541,buzz: mutex acquired, calling tone()
+97896,buzz: tone() cycle complete, releasing mutex
+100989,watchdog: PPG lost contact, firing warning beep
+101046,buzz: beep 1/1 freq=3000 waiting for mutex
+101101,buzz: mutex acquired, calling tone()
+101454,buzz: tone() cycle complete, releasing mutex
+104548,watchdog: PPG lost contact, firing warning beep
+104708,buzz: beep 1/1 freq=3000 waiting for mutex
+104761,buzz: mutex acquired, calling tone()
+105116,buzz: tone() cycle complete, releasing mutex
+108188,watchdog: PPG lost contact, firing warning beep
+108248,buzz: beep 1/1 freq=3000 waiting for mutex
+108303,buzz: mutex acquired, calling tone()
+108661,buzz: tone() cycle complete, releasing mutex
+111760,watchdog: PPG lost contact, firing warning beep
+111822,buzz: beep 1/1 freq=3000 waiting for mutex
+111878,buzz: mutex acquired, calling tone()
+112237,buzz: tone() cycle complete, releasing mutex
+115356,watchdog: PPG lost contact, firing warning beep
+115403,buzz: beep 1/1 freq=3000 waiting for mutex
+115448,buzz: mutex acquired, calling tone()
+115788,buzz: tone() cycle complete, releasing mutex
+118835,watchdog: PPG lost contact, firing warning beep
+118880,buzz: beep 1/1 freq=3000 waiting for mutex
+118920,buzz: mutex acquired, calling tone()
+119260,buzz: tone() cycle complete, releasing mutex
+122314,watchdog: PPG lost contact, firing warning beep
+122359,buzz: beep 1/1 freq=3000 waiting for mutex
+122400,buzz: mutex acquired, calling tone()
+122745,buzz: tone() cycle complete, releasing mutex
+125913,watchdog: PPG lost contact, firing warning beep
+125959,buzz: beep 1/1 freq=3000 waiting for mutex
+126003,buzz: mutex acquired, calling tone()
+126347,buzz: tone() cycle complete, releasing mutex
+129434,watchdog: PPG lost contact, firing warning beep
+129472,buzz: beep 1/1 freq=3000 waiting for mutex
+129506,buzz: mutex acquired, calling tone()
+129838,buzz: tone() cycle complete, releasing mutex
+132872,watchdog: PPG lost contact, firing warning beep
+132918,buzz: beep 1/1 freq=3000 waiting for mutex
+132958,buzz: mutex acquired, calling tone()
+133305,buzz: tone() cycle complete, releasing mutex
+136351,watchdog: PPG lost contact, firing warning beep
+136392,buzz: beep 1/1 freq=3000 waiting for mutex
+136434,buzz: mutex acquired, calling tone()
+136778,buzz: tone() cycle complete, releasing mutex
+139614,buzz: beep 1/3 freq=800 waiting for mutex
+139654,buzz: mutex acquired, calling tone()
+139830,watchdog: PPG lost contact, firing warning beep
+139876,buzz: beep 1/1 freq=3000 waiting for mutex
+139950,buzz: tone() cycle complete, releasing mutex
+139995,buzz: mutex acquired, calling tone()
+140145,buzz: beep 2/3 freq=800 waiting for mutex
+140363,buzz: tone() cycle complete, releasing mutex
+140405,buzz: mutex acquired, calling tone()
+140653,buzz: tone() cycle complete, releasing mutex
+140849,buzz: beep 3/3 freq=800 waiting for mutex
+140893,buzz: mutex acquired, calling tone()
+141140,buzz: tone() cycle complete, releasing mutex
+143429,watchdog: PPG lost contact, firing warning beep
+143473,buzz: beep 1/1 freq=3000 waiting for mutex
+143516,buzz: mutex acquired, calling tone()
+143862,buzz: tone() cycle complete, releasing mutex
+146908,watchdog: PPG lost contact, firing warning beep
+146956,buzz: beep 1/1 freq=3000 waiting for mutex
+146999,buzz: mutex acquired, calling tone()
+147345,buzz: tone() cycle complete, releasing mutex
+150427,watchdog: PPG lost contact, firing warning beep
+150474,buzz: beep 1/1 freq=3000 waiting for mutex
+150520,buzz: mutex acquired, calling tone()
+150870,buzz: tone() cycle complete, releasing mutex
+153956,watchdog: PPG lost contact, firing warning beep
+154005,buzz: beep 1/1 freq=3000 waiting for mutex
+154054,buzz: mutex acquired, calling tone()
+154405,buzz: tone() cycle complete, releasing mutex
+157476,watchdog: PPG lost contact, firing warning beep
+157575,buzz: beep 1/1 freq=3000 waiting for mutex
+157729,buzz: mutex acquired, calling tone()
+158074,buzz: tone() cycle complete, releasing mutex
+161157,watchdog: PPG lost contact, firing warning beep
+161219,buzz: beep 1/1 freq=3000 waiting for mutex
+161271,buzz: mutex acquired, calling tone()
+161623,buzz: tone() cycle complete, releasing mutex
+164679,watchdog: PPG lost contact, firing warning beep
+164740,buzz: beep 1/1 freq=3000 waiting for mutex
+164799,buzz: mutex acquired, calling tone()
+165151,buzz: tone() cycle complete, releasing mutex
+168233,watchdog: PPG lost contact, firing warning beep
+168284,buzz: beep 1/1 freq=3000 waiting for mutex
+168334,buzz: mutex acquired, calling tone()
+168688,buzz: tone() cycle complete, releasing mutex
+171752,watchdog: PPG lost contact, firing warning beep
+171811,buzz: beep 1/1 freq=3000 waiting for mutex
+171871,buzz: mutex acquired, calling tone()
+172227,buzz: tone() cycle complete, releasing mutex
+175311,watchdog: PPG lost contact, firing warning beep
+175371,buzz: beep 1/1 freq=3000 waiting for mutex
+175428,buzz: mutex acquired, calling tone()
+175790,buzz: tone() cycle complete, releasing mutex
+178870,watchdog: PPG lost contact, firing warning beep
+178967,buzz: beep 1/1 freq=3000 waiting for mutex
+179008,buzz: mutex acquired, calling tone()
+179349,buzz: tone() cycle complete, releasing mutex
+182429,watchdog: PPG lost contact, firing warning beep
+182472,buzz: beep 1/1 freq=3000 waiting for mutex
+182521,buzz: mutex acquired, calling tone()
+182864,buzz: tone() cycle complete, releasing mutex
+185949,watchdog: PPG lost contact, firing warning beep
+186148,buzz: beep 1/1 freq=3000 waiting for mutex
+186195,buzz: mutex acquired, calling tone()
+186539,buzz: tone() cycle complete, releasing mutex
+189588,watchdog: PPG lost contact, firing warning beep
+189631,buzz: beep 1/1 freq=3000 waiting for mutex
+189675,buzz: mutex acquired, calling tone()
+190019,buzz: tone() cycle complete, releasing mutex
+193067,watchdog: PPG lost contact, firing warning beep
+193113,buzz: beep 1/1 freq=3000 waiting for mutex
+193158,buzz: mutex acquired, calling tone()
+193502,buzz: tone() cycle complete, releasing mutex
+196556,watchdog: PPG lost contact, firing warning beep
+196602,buzz: beep 1/1 freq=3000 waiting for mutex
+196646,buzz: mutex acquired, calling tone()
+196995,buzz: tone() cycle complete, releasing mutex
+200075,watchdog: PPG lost contact, firing warning beep
+200123,buzz: beep 1/1 freq=3000 waiting for mutex
+200169,buzz: mutex acquired, calling tone()
+200516,buzz: tone() cycle complete, releasing mutex
+203596,watchdog: PPG lost contact, firing warning beep
+203703,buzz: beep 1/1 freq=3000 waiting for mutex
+203754,buzz: mutex acquired, calling tone()
+204203,buzz: tone() cycle complete, releasing mutex
+207275,watchdog: PPG lost contact, firing warning beep
+207323,buzz: beep 1/1 freq=3000 waiting for mutex
+207369,buzz: mutex acquired, calling tone()
+207717,buzz: tone() cycle complete, releasing mutex
+210793,watchdog: PPG lost contact, firing warning beep
+210846,buzz: beep 1/1 freq=3000 waiting for mutex
+210896,buzz: mutex acquired, calling tone()
+211244,buzz: tone() cycle complete, releasing mutex
+214313,watchdog: PPG lost contact, firing warning beep
+214360,buzz: beep 1/1 freq=3000 waiting for mutex
+214409,buzz: mutex acquired, calling tone()
+214757,buzz: tone() cycle complete, releasing mutex
+217832,watchdog: PPG lost contact, firing warning beep
+217889,buzz: beep 1/1 freq=3000 waiting for mutex
+217939,buzz: mutex acquired, calling tone()
+218292,buzz: tone() cycle complete, releasing mutex
+221351,watchdog: PPG lost contact, firing warning beep
+221404,buzz: beep 1/1 freq=3000 waiting for mutex
+221458,buzz: mutex acquired, calling tone()
+221811,buzz: tone() cycle complete, releasing mutex
+224871,watchdog: PPG lost contact, firing warning beep
+224924,buzz: beep 1/1 freq=3000 waiting for mutex
+224973,buzz: mutex acquired, calling tone()
+225324,buzz: tone() cycle complete, releasing mutex
+228390,watchdog: PPG lost contact, firing warning beep
+228444,buzz: beep 1/1 freq=3000 waiting for mutex
+228494,buzz: mutex acquired, calling tone()
+228846,buzz: tone() cycle complete, releasing mutex
+231344,buzz: beep 1/3 freq=800 waiting for mutex
+231400,buzz: mutex acquired, calling tone()
+231654,buzz: tone() cycle complete, releasing mutex
+231912,watchdog: PPG lost contact, firing warning beep
+232022,buzz: beep 1/1 freq=3000 waiting for mutex
+232079,buzz: mutex acquired, calling tone()
+232134,buzz: beep 2/3 freq=800 waiting for mutex
+232434,buzz: tone() cycle complete, releasing mutex
+232491,buzz: mutex acquired, calling tone()
+232752,buzz: tone() cycle complete, releasing mutex
+232958,buzz: beep 3/3 freq=800 waiting for mutex
+233023,buzz: mutex acquired, calling tone()
+233282,buzz: tone() cycle complete, releasing mutex
+235521,watchdog: PPG lost contact, firing warning beep
+235585,buzz: beep 1/1 freq=3000 waiting for mutex
+235647,buzz: mutex acquired, calling tone()
+236007,buzz: tone() cycle complete, releasing mutex
+239069,watchdog: PPG lost contact, firing warning beep
+239231,buzz: beep 1/1 freq=3000 waiting for mutex
+239282,buzz: mutex acquired, calling tone()
+239633,buzz: tone() cycle complete, releasing mutex
+242708,watchdog: PPG lost contact, firing warning beep
+242799,buzz: beep 1/1 freq=3000 waiting for mutex
+242835,buzz: mutex acquired, calling tone()
+243173,buzz: tone() cycle complete, releasing mutex
+246227,watchdog: PPG lost contact, firing warning beep
+246266,buzz: beep 1/1 freq=3000 waiting for mutex
+246309,buzz: mutex acquired, calling tone()
+246649,buzz: tone() cycle complete, releasing mutex
+249716,watchdog: PPG lost contact, firing warning beep
+249759,buzz: beep 1/1 freq=3000 waiting for mutex
+249800,buzz: mutex acquired, calling tone()
+250140,buzz: tone() cycle complete, releasing mutex
+253196,watchdog: PPG lost contact, firing warning beep
+253242,buzz: beep 1/1 freq=3000 waiting for mutex
+253282,buzz: mutex acquired, calling tone()
+253624,buzz: tone() cycle complete, releasing mutex
+256676,watchdog: PPG lost contact, firing warning beep
+256766,buzz: beep 1/1 freq=3000 waiting for mutex
+256811,buzz: mutex acquired, calling tone()
+257155,buzz: tone() cycle complete, releasing mutex
+260322,watchdog: PPG lost contact, firing warning beep
+260366,buzz: beep 1/1 freq=3000 waiting for mutex
+260409,buzz: mutex acquired, calling tone()
+260752,buzz: tone() cycle complete, releasing mutex
+263795,watchdog: PPG lost contact, firing warning beep
+263838,buzz: beep 1/1 freq=3000 waiting for mutex
+263881,buzz: mutex acquired, calling tone()
+264222,buzz: tone() cycle complete, releasing mutex
+267276,watchdog: PPG lost contact, firing warning beep
+267357,buzz: beep 1/1 freq=3000 waiting for mutex
+267401,buzz: mutex acquired, calling tone()
+267746,buzz: tone() cycle complete, releasing mutex
+270793,watchdog: PPG lost contact, firing warning beep
+270841,buzz: beep 1/1 freq=3000 waiting for mutex
+270887,buzz: mutex acquired, calling tone()
+271236,buzz: tone() cycle complete, releasing mutex
+274312,watchdog: PPG lost contact, firing warning beep
+274357,buzz: beep 1/1 freq=3000 waiting for mutex
+274400,buzz: mutex acquired, calling tone()
+274746,buzz: tone() cycle complete, releasing mutex
+277792,watchdog: PPG lost contact, firing warning beep
+277841,buzz: beep 1/1 freq=3000 waiting for mutex
+277890,buzz: mutex acquired, calling tone()
+278238,buzz: tone() cycle complete, releasing mutex
+281311,watchdog: PPG lost contact, firing warning beep
+281366,buzz: beep 1/1 freq=3000 waiting for mutex
+281420,buzz: mutex acquired, calling tone()
+281768,buzz: tone() cycle complete, releasing mutex
+284830,watchdog: PPG lost contact, firing warning beep
+284881,buzz: beep 1/1 freq=3000 waiting for mutex
+284935,buzz: mutex acquired, calling tone()
+285289,buzz: tone() cycle complete, releasing mutex
+288470,watchdog: PPG lost contact, firing warning beep
+288575,buzz: beep 1/1 freq=3000 waiting for mutex
+288633,buzz: mutex acquired, calling tone()
+288986,buzz: tone() cycle complete, releasing mutex
+292081,watchdog: PPG lost contact, firing warning beep
+292140,buzz: beep 1/1 freq=3000 waiting for mutex
+292194,buzz: mutex acquired, calling tone()
+292549,buzz: tone() cycle complete, releasing mutex
+295629,watchdog: PPG lost contact, firing warning beep
+295685,buzz: beep 1/1 freq=3000 waiting for mutex
+295737,buzz: mutex acquired, calling tone()
+296091,buzz: tone() cycle complete, releasing mutex
+299147,watchdog: PPG lost contact, firing warning beep
+299204,buzz: beep 1/1 freq=3000 waiting for mutex
+299261,buzz: mutex acquired, calling tone()
+299623,buzz: tone() cycle complete, releasing mutex
+302707,watchdog: PPG lost contact, firing warning beep
+302767,buzz: beep 1/1 freq=3000 waiting for mutex
+302827,buzz: mutex acquired, calling tone()
+303187,buzz: tone() cycle complete, releasing mutex
+306276,watchdog: PPG lost contact, firing warning beep
+306343,buzz: beep 1/1 freq=3000 waiting for mutex
+306400,buzz: mutex acquired, calling tone()
+306759,buzz: tone() cycle complete, releasing mutex
+309835,watchdog: PPG lost contact, firing warning beep
+309897,buzz: beep 1/1 freq=3000 waiting for mutex
+309956,buzz: mutex acquired, calling tone()
+310318,buzz: tone() cycle complete, releasing mutex
+313395,watchdog: PPG lost contact, firing warning beep
+313457,buzz: beep 1/1 freq=3000 waiting for mutex
+313520,buzz: mutex acquired, calling tone()
+314019,buzz: tone() cycle complete, releasing mutex
+317075,watchdog: PPG lost contact, firing warning beep
+317163,buzz: beep 1/1 freq=3000 waiting for mutex
+317208,buzz: mutex acquired, calling tone()
+317553,buzz: tone() cycle complete, releasing mutex
+320605,watchdog: PPG lost contact, firing warning beep
+320649,buzz: beep 1/1 freq=3000 waiting for mutex
+320692,buzz: mutex acquired, calling tone()
+321034,buzz: tone() cycle complete, releasing mutex
+323510,buzz: beep 1/3 freq=800 waiting for mutex
+323554,buzz: mutex acquired, calling tone()
+323805,buzz: tone() cycle complete, releasing mutex
+324036,buzz: beep 2/3 freq=800 waiting for mutex
+324087,watchdog: PPG lost contact, firing warning beep
+324139,buzz: mutex acquired, calling tone()
+324188,buzz: beep 1/1 freq=3000 waiting for mutex
+324388,buzz: tone() cycle complete, releasing mutex
+324436,buzz: mutex acquired, calling tone()
+324586,buzz: beep 3/3 freq=800 waiting for mutex
+324781,buzz: tone() cycle complete, releasing mutex
+324827,buzz: mutex acquired, calling tone()
+325076,buzz: tone() cycle complete, releasing mutex
+327832,watchdog: PPG lost contact, firing warning beep
+327879,buzz: beep 1/1 freq=3000 waiting for mutex
+327924,buzz: mutex acquired, calling tone()
+328271,buzz: tone() cycle complete, releasing mutex
+331351,watchdog: PPG lost contact, firing warning beep
+331396,buzz: beep 1/1 freq=3000 waiting for mutex
+331443,buzz: mutex acquired, calling tone()
+331790,buzz: tone() cycle complete, releasing mutex
+334871,watchdog: PPG lost contact, firing warning beep
+334917,buzz: beep 1/1 freq=3000 waiting for mutex
+334964,buzz: mutex acquired, calling tone()
+335313,buzz: tone() cycle complete, releasing mutex
+338390,watchdog: PPG lost contact, firing warning beep
+338440,buzz: beep 1/1 freq=3000 waiting for mutex
+338487,buzz: mutex acquired, calling tone()
+338839,buzz: tone() cycle complete, releasing mutex
+341910,watchdog: PPG lost contact, firing warning beep
+342013,buzz: beep 1/1 freq=3000 waiting for mutex
+342059,buzz: mutex acquired, calling tone()
+342408,buzz: tone() cycle complete, releasing mutex
+345469,watchdog: PPG lost contact, firing warning beep
+345516,buzz: beep 1/1 freq=3000 waiting for mutex
+345560,buzz: mutex acquired, calling tone()
+345908,buzz: tone() cycle complete, releasing mutex
+349000,watchdog: PPG lost contact, firing warning beep
+349077,buzz: beep 1/1 freq=3000 waiting for mutex
+349126,buzz: mutex acquired, calling tone()
+349483,buzz: tone() cycle complete, releasing mutex
+352547,watchdog: PPG lost contact, firing warning beep
+352594,buzz: beep 1/1 freq=3000 waiting for mutex
+352648,buzz: mutex acquired, calling tone()
+352999,buzz: tone() cycle complete, releasing mutex
+356076,watchdog: PPG lost contact, firing warning beep
+356126,buzz: beep 1/1 freq=3000 waiting for mutex
+356180,buzz: mutex acquired, calling tone()
+356535,buzz: tone() cycle complete, releasing mutex
+359596,watchdog: PPG lost contact, firing warning beep
+359653,buzz: beep 1/1 freq=3000 waiting for mutex
+359704,buzz: mutex acquired, calling tone()
+360057,buzz: tone() cycle complete, releasing mutex
+363115,watchdog: PPG lost contact, firing warning beep
+363168,buzz: beep 1/1 freq=3000 waiting for mutex
+363221,buzz: mutex acquired, calling tone()
+363577,buzz: tone() cycle complete, releasing mutex
+366634,watchdog: PPG lost contact, firing warning beep
+366689,buzz: beep 1/1 freq=3000 waiting for mutex
+366740,buzz: mutex acquired, calling tone()
+367095,buzz: tone() cycle complete, releasing mutex
+370274,watchdog: PPG lost contact, firing warning beep
+370327,buzz: beep 1/1 freq=3000 waiting for mutex
+370382,buzz: mutex acquired, calling tone()
+370735,buzz: tone() cycle complete, releasing mutex
+373793,watchdog: PPG lost contact, firing warning beep
+373858,buzz: beep 1/1 freq=3000 waiting for mutex
+373910,buzz: mutex acquired, calling tone()
+374264,buzz: tone() cycle complete, releasing mutex
+377354,watchdog: PPG lost contact, firing warning beep
+377467,buzz: beep 1/1 freq=3000 waiting for mutex
+377524,buzz: mutex acquired, calling tone()
+377883,buzz: tone() cycle complete, releasing mutex
+380993,watchdog: PPG lost contact, firing warning beep
+381033,buzz: beep 1/1 freq=3000 waiting for mutex
+381079,buzz: mutex acquired, calling tone()
+381421,buzz: tone() cycle complete, releasing mutex
+384471,watchdog: PPG lost contact, firing warning beep
+384513,buzz: beep 1/1 freq=3000 waiting for mutex
+384554,buzz: mutex acquired, calling tone()
+384894,buzz: tone() cycle complete, releasing mutex
+387951,watchdog: PPG lost contact, firing warning beep
+387998,buzz: beep 1/1 freq=3000 waiting for mutex
+388045,buzz: mutex acquired, calling tone()
+388389,buzz: tone() cycle complete, releasing mutex
+391470,watchdog: PPG lost contact, firing warning beep
+391512,buzz: beep 1/1 freq=3000 waiting for mutex
+391557,buzz: mutex acquired, calling tone()
+391905,buzz: tone() cycle complete, releasing mutex
+395003,watchdog: PPG lost contact, firing warning beep
+395052,buzz: beep 1/1 freq=3000 waiting for mutex
+395209,buzz: mutex acquired, calling tone()
+11447,BOOT reset_reason=OTHER heap=326140
+15617,buzz: beep 1/3 freq=800 waiting for mutex
+15666,buzz: mutex acquired, calling tone()
+15912,buzz: tone() cycle complete, releasing mutex
+16112,buzz: beep 2/3 freq=800 waiting for mutex
+16158,buzz: mutex acquired, calling tone()
+16409,buzz: tone() cycle complete, releasing mutex
+16606,buzz: beep 3/3 freq=800 waiting for mutex
+16656,buzz: mutex acquired, calling tone()
+16907,buzz: tone() cycle complete, releasing mutex
+18615,watchdog: PPG lost contact, firing warning beep
+18666,buzz: beep 1/1 freq=3000 waiting for mutex
+18714,buzz: mutex acquired, calling tone()
+19062,buzz: tone() cycle complete, releasing mutex
+22135,watchdog: PPG lost contact, firing warning beep
+22180,buzz: beep 1/1 freq=3000 waiting for mutex
+22232,buzz: mutex acquired, calling tone()
+22580,buzz: tone() cycle complete, releasing mutex
+25655,watchdog: PPG lost contact, firing warning beep
+25704,buzz: beep 1/1 freq=3000 waiting for mutex
+25755,buzz: mutex acquired, calling tone()
+26104,buzz: tone() cycle complete, releasing mutex
+29175,watchdog: PPG lost contact, firing warning beep
+29224,buzz: beep 1/1 freq=3000 waiting for mutex
+29276,buzz: mutex acquired, calling tone()
+29623,buzz: tone() cycle complete, releasing mutex
+32695,watchdog: PPG lost contact, firing warning beep
+32747,buzz: beep 1/1 freq=3000 waiting for mutex
+32796,buzz: mutex acquired, calling tone()
+33148,buzz: tone() cycle complete, releasing mutex
+36215,watchdog: PPG lost contact, firing warning beep
+36373,buzz: beep 1/1 freq=3000 waiting for mutex
+36423,buzz: mutex acquired, calling tone()
+36773,buzz: tone() cycle complete, releasing mutex
+39856,watchdog: PPG lost contact, firing warning beep
+39912,buzz: beep 1/1 freq=3000 waiting for mutex
+39965,buzz: mutex acquired, calling tone()
+40314,buzz: tone() cycle complete, releasing mutex
+43377,watchdog: PPG lost contact, firing warning beep
+43442,buzz: beep 1/1 freq=3000 waiting for mutex
+43490,buzz: mutex acquired, calling tone()
+43845,buzz: tone() cycle complete, releasing mutex
+46936,watchdog: PPG lost contact, firing warning beep
+46991,buzz: beep 1/1 freq=3000 waiting for mutex
+47052,buzz: mutex acquired, calling tone()
+47407,buzz: tone() cycle complete, releasing mutex
+50495,watchdog: PPG lost contact, firing warning beep
+50556,buzz: beep 1/1 freq=3000 waiting for mutex
+50615,buzz: mutex acquired, calling tone()
+50972,buzz: tone() cycle complete, releasing mutex
+54055,watchdog: PPG lost contact, firing warning beep
+54115,buzz: beep 1/1 freq=3000 waiting for mutex
+54278,buzz: mutex acquired, calling tone()
+54631,buzz: tone() cycle complete, releasing mutex
+57695,watchdog: PPG lost contact, firing warning beep
+57756,buzz: beep 1/1 freq=3000 waiting for mutex
+57816,buzz: mutex acquired, calling tone()
+58175,buzz: tone() cycle complete, releasing mutex
+61255,watchdog: PPG lost contact, firing warning beep
+61311,buzz: beep 1/1 freq=3000 waiting for mutex
+61371,buzz: mutex acquired, calling tone()
+61727,buzz: tone() cycle complete, releasing mutex
+64815,watchdog: PPG lost contact, firing warning beep
+64868,buzz: beep 1/1 freq=3000 waiting for mutex
+64961,buzz: mutex acquired, calling tone()
+65303,buzz: tone() cycle complete, releasing mutex
+68375,watchdog: PPG lost contact, firing warning beep
+68413,buzz: beep 1/1 freq=3000 waiting for mutex
+68453,buzz: mutex acquired, calling tone()
+68797,buzz: tone() cycle complete, releasing mutex
+71855,watchdog: PPG lost contact, firing warning beep
+71892,buzz: beep 1/1 freq=3000 waiting for mutex
+71930,buzz: mutex acquired, calling tone()
+72265,buzz: tone() cycle complete, releasing mutex
+75456,watchdog: PPG lost contact, firing warning beep
+75496,buzz: beep 1/1 freq=3000 waiting for mutex
+75543,buzz: mutex acquired, calling tone()
+75885,buzz: tone() cycle complete, releasing mutex
+78936,watchdog: PPG lost contact, firing warning beep
+78982,buzz: beep 1/1 freq=3000 waiting for mutex
+79018,buzz: mutex acquired, calling tone()
+79361,buzz: tone() cycle complete, releasing mutex
+82416,watchdog: PPG lost contact, firing warning beep
+82463,buzz: beep 1/1 freq=3000 waiting for mutex
+82508,buzz: mutex acquired, calling tone()
+82852,buzz: tone() cycle complete, releasing mutex
+85935,watchdog: PPG lost contact, firing warning beep
+85987,buzz: beep 1/1 freq=3000 waiting for mutex
+86030,buzz: mutex acquired, calling tone()
+86375,buzz: tone() cycle complete, releasing mutex
+89455,watchdog: PPG lost contact, firing warning beep
+89499,buzz: beep 1/1 freq=3000 waiting for mutex
+89544,buzz: mutex acquired, calling tone()
+89887,buzz: tone() cycle complete, releasing mutex
+92935,watchdog: PPG lost contact, firing warning beep
+92981,buzz: beep 1/1 freq=3000 waiting for mutex
+93033,buzz: mutex acquired, calling tone()
+93378,buzz: tone() cycle complete, releasing mutex
+96455,watchdog: PPG lost contact, firing warning beep
+96502,buzz: beep 1/1 freq=3000 waiting for mutex
+96546,buzz: mutex acquired, calling tone()
+96897,buzz: tone() cycle complete, releasing mutex
+99975,watchdog: PPG lost contact, firing warning beep
+100019,buzz: beep 1/1 freq=3000 waiting for mutex
+100066,buzz: mutex acquired, calling tone()
+100409,buzz: tone() cycle complete, releasing mutex
+103455,watchdog: PPG lost contact, firing warning beep
+103507,buzz: beep 1/1 freq=3000 waiting for mutex
+103562,buzz: mutex acquired, calling tone()
+103912,buzz: tone() cycle complete, releasing mutex
+106975,watchdog: PPG lost contact, firing warning beep
+107029,buzz: beep 1/1 freq=3000 waiting for mutex
+107080,buzz: mutex acquired, calling tone()
+107131,buzz: beep 1/3 freq=800 waiting for mutex
+107431,buzz: tone() cycle complete, releasing mutex
+107480,buzz: mutex acquired, calling tone()
+107780,buzz: tone() cycle complete, releasing mutex
+107984,buzz: beep 2/3 freq=800 waiting for mutex
+108040,buzz: mutex acquired, calling tone()
+108292,buzz: tone() cycle complete, releasing mutex
+108497,buzz: beep 3/3 freq=800 waiting for mutex
+108598,buzz: mutex acquired, calling tone()
+108857,buzz: tone() cycle complete, releasing mutex
+110497,watchdog: PPG lost contact, firing warning beep
+110551,buzz: beep 1/1 freq=3000 waiting for mutex
+110603,buzz: mutex acquired, calling tone()
+110957,buzz: tone() cycle complete, releasing mutex
+114016,watchdog: PPG lost contact, firing warning beep
+114075,buzz: beep 1/1 freq=3000 waiting for mutex
+114128,buzz: mutex acquired, calling tone()
+114481,buzz: tone() cycle complete, releasing mutex
+117656,watchdog: PPG lost contact, firing warning beep
+117717,buzz: beep 1/1 freq=3000 waiting for mutex
+117776,buzz: mutex acquired, calling tone()
+118132,buzz: tone() cycle complete, releasing mutex
+121215,watchdog: PPG lost contact, firing warning beep
+121282,buzz: beep 1/1 freq=3000 waiting for mutex
+121349,buzz: mutex acquired, calling tone()
+121718,buzz: tone() cycle complete, releasing mutex
+124815,watchdog: PPG lost contact, firing warning beep
+124876,buzz: beep 1/1 freq=3000 waiting for mutex
+124932,buzz: mutex acquired, calling tone()
+125289,buzz: tone() cycle complete, releasing mutex
+128375,watchdog: PPG lost contact, firing warning beep
+128437,buzz: beep 1/1 freq=3000 waiting for mutex
+128510,buzz: mutex acquired, calling tone()
+128915,buzz: tone() cycle complete, releasing mutex
+131975,watchdog: PPG lost contact, firing warning beep
+132020,buzz: beep 1/1 freq=3000 waiting for mutex
+132061,buzz: mutex acquired, calling tone()
+132405,buzz: tone() cycle complete, releasing mutex
+135455,watchdog: PPG lost contact, firing warning beep
+135505,buzz: beep 1/1 freq=3000 waiting for mutex
+135556,buzz: mutex acquired, calling tone()
+135902,buzz: tone() cycle complete, releasing mutex
+138975,watchdog: PPG lost contact, firing warning beep
+139021,buzz: beep 1/1 freq=3000 waiting for mutex
+139066,buzz: mutex acquired, calling tone()
+139414,buzz: tone() cycle complete, releasing mutex
+142495,watchdog: PPG lost contact, firing warning beep
+142652,buzz: beep 1/1 freq=3000 waiting for mutex
+142699,buzz: mutex acquired, calling tone()
+143046,buzz: tone() cycle complete, releasing mutex
+146096,watchdog: PPG lost contact, firing warning beep
+146139,buzz: beep 1/1 freq=3000 waiting for mutex
+146185,buzz: mutex acquired, calling tone()
+146533,buzz: tone() cycle complete, releasing mutex
+149621,watchdog: PPG lost contact, firing warning beep
+149672,buzz: beep 1/1 freq=3000 waiting for mutex
+149718,buzz: mutex acquired, calling tone()
+150069,buzz: tone() cycle complete, releasing mutex
+20313,BOOT reset_reason=OTHER heap=326140
+170469,BOOT reset_reason=OTHER heap=326140
+173662,buzz: beep 1/3 freq=800 waiting for mutex
+173713,buzz: mutex acquired, calling tone()
+173970,buzz: tone() cycle complete, releasing mutex
+174173,buzz: beep 2/3 freq=800 waiting for mutex
+174229,buzz: mutex acquired, calling tone()
+174481,buzz: tone() cycle complete, releasing mutex
+174692,buzz: beep 3/3 freq=800 waiting for mutex
+174755,buzz: mutex acquired, calling tone()
+175005,buzz: tone() cycle complete, releasing mutex
+176661,watchdog: PPG lost contact, firing warning beep
+176706,buzz: beep 1/1 freq=3000 waiting for mutex
+176751,buzz: mutex acquired, calling tone()
+177099,buzz: tone() cycle complete, releasing mutex
+180181,watchdog: PPG lost contact, firing warning beep
+180227,buzz: beep 1/1 freq=3000 waiting for mutex
+180272,buzz: mutex acquired, calling tone()
+180627,buzz: tone() cycle complete, releasing mutex
+183701,watchdog: PPG lost contact, firing warning beep
+183751,buzz: beep 1/1 freq=3000 waiting for mutex
+183803,buzz: mutex acquired, calling tone()
+184273,buzz: tone() cycle complete, releasing mutex
+187340,watchdog: PPG lost contact, firing warning beep
+187394,buzz: beep 1/1 freq=3000 waiting for mutex
+187446,buzz: mutex acquired, calling tone()
+187800,buzz: tone() cycle complete, releasing mutex
+190869,watchdog: PPG lost contact, firing warning beep
+190926,buzz: beep 1/1 freq=3000 waiting for mutex
+190982,buzz: mutex acquired, calling tone()
+191339,buzz: tone() cycle complete, releasing mutex
+194429,watchdog: PPG lost contact, firing warning beep
+194487,buzz: beep 1/1 freq=3000 waiting for mutex
+194542,buzz: mutex acquired, calling tone()
+194900,buzz: tone() cycle complete, releasing mutex
+946225,BOOT reset_reason=OTHER heap=326140
+949509,buzz: beep 1/3 freq=800 waiting for mutex
+949578,buzz: mutex acquired, calling tone()
+949848,buzz: tone() cycle complete, releasing mutex
+950078,buzz: beep 2/3 freq=800 waiting for mutex
+950150,buzz: mutex acquired, calling tone()
+950422,buzz: tone() cycle complete, releasing mutex
+950650,buzz: beep 3/3 freq=800 waiting for mutex
+950713,buzz: mutex acquired, calling tone()
+950978,buzz: tone() cycle complete, releasing mutex
+952553,watchdog: PPG lost contact, firing warning beep
+952630,buzz: beep 1/1 freq=3000 waiting for mutex
+952689,buzz: mutex acquired, calling tone()
+953051,buzz: tone() cycle complete, releasing mutex
+956112,watchdog: PPG lost contact, firing warning beep
+956172,buzz: beep 1/1 freq=3000 waiting for mutex
+956226,buzz: mutex acquired, calling tone()
+956581,buzz: tone() cycle complete, releasing mutex
+959672,watchdog: PPG lost contact, firing warning beep
+959732,buzz: beep 1/1 freq=3000 waiting for mutex
+959796,buzz: mutex acquired, calling tone()
+960154,buzz: tone() cycle complete, releasing mutex
+963231,watchdog: PPG lost contact, firing warning beep
+963335,buzz: beep 1/1 freq=3000 waiting for mutex
+963377,buzz: mutex acquired, calling tone()
+963719,buzz: tone() cycle complete, releasing mutex
+966792,watchdog: PPG lost contact, firing warning beep
+966835,buzz: beep 1/1 freq=3000 waiting for mutex
+966877,buzz: mutex acquired, calling tone()
+967382,buzz: tone() cycle complete, releasing mutex
+970430,watchdog: PPG lost contact, firing warning beep
+970473,buzz: beep 1/1 freq=3000 waiting for mutex
+970511,buzz: mutex acquired, calling tone()
+970851,buzz: tone() cycle complete, releasing mutex
+973910,watchdog: PPG lost contact, firing warning beep
+973952,buzz: beep 1/1 freq=3000 waiting for mutex
+973996,buzz: mutex acquired, calling tone()
+974336,buzz: tone() cycle complete, releasing mutex
+977389,watchdog: PPG lost contact, firing warning beep
+977433,buzz: beep 1/1 freq=3000 waiting for mutex
+977474,buzz: mutex acquired, calling tone()
+977818,buzz: tone() cycle complete, releasing mutex
+980868,watchdog: PPG lost contact, firing warning beep
+980914,buzz: beep 1/1 freq=3000 waiting for mutex
+980957,buzz: mutex acquired, calling tone()
+981303,buzz: tone() cycle complete, releasing mutex
+984389,watchdog: PPG lost contact, firing warning beep
+984439,buzz: beep 1/1 freq=3000 waiting for mutex
+984484,buzz: mutex acquired, calling tone()
+984830,buzz: tone() cycle complete, releasing mutex
+987881,watchdog: PPG lost contact, firing warning beep
+987928,buzz: beep 1/1 freq=3000 waiting for mutex
+987973,buzz: mutex acquired, calling tone()
+988319,buzz: tone() cycle complete, releasing mutex
+991387,watchdog: PPG lost contact, firing warning beep
+991439,buzz: beep 1/1 freq=3000 waiting for mutex
+991488,buzz: mutex acquired, calling tone()
+991835,buzz: tone() cycle complete, releasing mutex
+994916,watchdog: PPG lost contact, firing warning beep
+994967,buzz: beep 1/1 freq=3000 waiting for mutex
+995013,buzz: mutex acquired, calling tone()
+995363,buzz: tone() cycle complete, releasing mutex
+998436,watchdog: PPG lost contact, firing warning beep
+998487,buzz: beep 1/1 freq=3000 waiting for mutex
+998540,buzz: mutex acquired, calling tone()
+998890,buzz: tone() cycle complete, releasing mutex
+1001956,watchdog: PPG lost contact, firing warning beep
+1002007,buzz: beep 1/1 freq=3000 waiting for mutex
+1002058,buzz: mutex acquired, calling tone()
+1002413,buzz: tone() cycle complete, releasing mutex
+1005475,watchdog: PPG lost contact, firing warning beep
+1005527,buzz: beep 1/1 freq=3000 waiting for mutex
+1005576,buzz: mutex acquired, calling tone()
+1005925,buzz: tone() cycle complete, releasing mutex
+1008995,watchdog: PPG lost contact, firing warning beep
+1009045,buzz: beep 1/1 freq=3000 waiting for mutex
+1009098,buzz: mutex acquired, calling tone()
+1009445,buzz: tone() cycle complete, releasing mutex
+1012514,watchdog: PPG lost contact, firing warning beep
+1012569,buzz: beep 1/1 freq=3000 waiting for mutex
+1012622,buzz: mutex acquired, calling tone()
+1012969,buzz: tone() cycle complete, releasing mutex
+1016035,watchdog: PPG lost contact, firing warning beep
+1016091,buzz: beep 1/1 freq=3000 waiting for mutex
+1016143,buzz: mutex acquired, calling tone()
+1016498,buzz: tone() cycle complete, releasing mutex
+1019608,watchdog: PPG lost contact, firing warning beep
+1019665,buzz: beep 1/1 freq=3000 waiting for mutex
+1019722,buzz: mutex acquired, calling tone()
+1020074,buzz: tone() cycle complete, releasing mutex
+1023153,watchdog: PPG lost contact, firing warning beep
+1023214,buzz: beep 1/1 freq=3000 waiting for mutex
+1023266,buzz: mutex acquired, calling tone()
+1023621,buzz: tone() cycle complete, releasing mutex
+1026712,watchdog: PPG lost contact, firing warning beep
+1026768,buzz: beep 1/1 freq=3000 waiting for mutex
+1026821,buzz: mutex acquired, calling tone()
+1027180,buzz: tone() cycle complete, releasing mutex
+1030272,watchdog: PPG lost contact, firing warning beep
+1030499,buzz: beep 1/1 freq=3000 waiting for mutex
+1030553,buzz: mutex acquired, calling tone()
+1030908,buzz: tone() cycle complete, releasing mutex
+1033992,watchdog: PPG lost contact, firing warning beep
+1034088,buzz: beep 1/1 freq=3000 waiting for mutex
+1034130,buzz: mutex acquired, calling tone()
+1034472,buzz: tone() cycle complete, releasing mutex
+1037551,watchdog: PPG lost contact, firing warning beep
+1037591,buzz: beep 1/1 freq=3000 waiting for mutex
+1037632,buzz: mutex acquired, calling tone()
+1037969,buzz: tone() cycle complete, releasing mutex
+1041031,watchdog: PPG lost contact, firing warning beep
+1041070,buzz: beep 1/1 freq=3000 waiting for mutex
+1041110,buzz: mutex acquired, calling tone()
+1041189,buzz: beep 1/3 freq=800 waiting for mutex
+1041450,buzz: tone() cycle complete, releasing mutex
+1041494,buzz: mutex acquired, calling tone()
+1041780,buzz: tone() cycle complete, releasing mutex
+1041973,buzz: beep 2/3 freq=800 waiting for mutex
+1042013,buzz: mutex acquired, calling tone()
+1042255,buzz: tone() cycle complete, releasing mutex
+1042449,buzz: beep 3/3 freq=800 waiting for mutex
+1042536,buzz: mutex acquired, calling tone()
+1042782,buzz: tone() cycle complete, releasing mutex
+1044523,watchdog: PPG lost contact, firing warning beep
+1044573,buzz: beep 1/1 freq=3000 waiting for mutex
+1044619,buzz: mutex acquired, calling tone()
+1044964,buzz: tone() cycle complete, releasing mutex
+1048030,watchdog: PPG lost contact, firing warning beep
+1048084,buzz: beep 1/1 freq=3000 waiting for mutex
+1048127,buzz: mutex acquired, calling tone()
+1048472,buzz: tone() cycle complete, releasing mutex
+1051550,watchdog: PPG lost contact, firing warning beep
+1051600,buzz: beep 1/1 freq=3000 waiting for mutex
+1051650,buzz: mutex acquired, calling tone()
+1052001,buzz: tone() cycle complete, releasing mutex
+1055069,watchdog: PPG lost contact, firing warning beep
+1055119,buzz: beep 1/1 freq=3000 waiting for mutex
+1055167,buzz: mutex acquired, calling tone()
+1055519,buzz: tone() cycle complete, releasing mutex
+1058589,watchdog: PPG lost contact, firing warning beep
+1058638,buzz: beep 1/1 freq=3000 waiting for mutex
+1058685,buzz: mutex acquired, calling tone()
+1059033,buzz: tone() cycle complete, releasing mutex
+1065148,watchdog: PPG lost contact, firing warning beep
+1065197,buzz: beep 1/1 freq=3000 waiting for mutex
+1065251,buzz: mutex acquired, calling tone()
+1065602,buzz: tone() cycle complete, releasing mutex
+1068668,watchdog: PPG lost contact, firing warning beep
+1068717,buzz: beep 1/1 freq=3000 waiting for mutex
+1068768,buzz: mutex acquired, calling tone()
+1069121,buzz: tone() cycle complete, releasing mutex
+1072187,watchdog: PPG lost contact, firing warning beep
+1072239,buzz: beep 1/1 freq=3000 waiting for mutex
+1072289,buzz: mutex acquired, calling tone()
+1072639,buzz: tone() cycle complete, releasing mutex
+1075707,watchdog: PPG lost contact, firing warning beep
+1075767,buzz: beep 1/1 freq=3000 waiting for mutex
+1075821,buzz: mutex acquired, calling tone()
+1076173,buzz: tone() cycle complete, releasing mutex
+1079280,watchdog: PPG lost contact, firing warning beep
+1079335,buzz: beep 1/1 freq=3000 waiting for mutex
+1079390,buzz: mutex acquired, calling tone()
+1079740,buzz: tone() cycle complete, releasing mutex
+1082866,watchdog: PPG lost contact, firing warning beep
+1082993,buzz: beep 1/1 freq=3000 waiting for mutex
+1083049,buzz: mutex acquired, calling tone()
+1083407,buzz: tone() cycle complete, releasing mutex
+1086476,watchdog: PPG lost contact, firing warning beep
+1086538,buzz: beep 1/1 freq=3000 waiting for mutex
+1086595,buzz: mutex acquired, calling tone()
+1086951,buzz: tone() cycle complete, releasing mutex
+1090036,watchdog: PPG lost contact, firing warning beep
+1090093,buzz: beep 1/1 freq=3000 waiting for mutex
+1090151,buzz: mutex acquired, calling tone()
+1090508,buzz: tone() cycle complete, releasing mutex
+1093595,watchdog: PPG lost contact, firing warning beep
+1093655,buzz: beep 1/1 freq=3000 waiting for mutex
+1093715,buzz: mutex acquired, calling tone()
+1094076,buzz: tone() cycle complete, releasing mutex
+1097155,watchdog: PPG lost contact, firing warning beep
+1097215,buzz: beep 1/1 freq=3000 waiting for mutex
+1097273,buzz: mutex acquired, calling tone()
+1097632,buzz: tone() cycle complete, releasing mutex
+1100714,watchdog: PPG lost contact, firing warning beep
+1100757,buzz: beep 1/1 freq=3000 waiting for mutex
+1100962,buzz: mutex acquired, calling tone()
+1101304,buzz: tone() cycle complete, releasing mutex
+1104354,watchdog: PPG lost contact, firing warning beep
+1104398,buzz: beep 1/1 freq=3000 waiting for mutex
+1104448,buzz: mutex acquired, calling tone()
+1104790,buzz: tone() cycle complete, releasing mutex
+1107846,watchdog: PPG lost contact, firing warning beep
+1107893,buzz: beep 1/1 freq=3000 waiting for mutex
+1107936,buzz: mutex acquired, calling tone()
+1108281,buzz: tone() cycle complete, releasing mutex
+1111354,watchdog: PPG lost contact, firing warning beep
+1111394,buzz: beep 1/1 freq=3000 waiting for mutex
+1111434,buzz: mutex acquired, calling tone()
+1111776,buzz: tone() cycle complete, releasing mutex
+1114833,watchdog: PPG lost contact, firing warning beep
+1114876,buzz: beep 1/1 freq=3000 waiting for mutex
+1114914,buzz: mutex acquired, calling tone()
+1115256,buzz: tone() cycle complete, releasing mutex
+1118313,watchdog: PPG lost contact, firing warning beep
+1118357,buzz: beep 1/1 freq=3000 waiting for mutex
+1118399,buzz: mutex acquired, calling tone()
+1118905,buzz: tone() cycle complete, releasing mutex
+1121992,watchdog: PPG lost contact, firing warning beep
+1122038,buzz: beep 1/1 freq=3000 waiting for mutex
+1122080,buzz: mutex acquired, calling tone()
+1122425,buzz: tone() cycle complete, releasing mutex
+1125484,watchdog: PPG lost contact, firing warning beep
+1125534,buzz: beep 1/1 freq=3000 waiting for mutex
+1125577,buzz: mutex acquired, calling tone()
+1125919,buzz: tone() cycle complete, releasing mutex
+1128992,watchdog: PPG lost contact, firing warning beep
+1129036,buzz: beep 1/1 freq=3000 waiting for mutex
+1129079,buzz: mutex acquired, calling tone()
+1129424,buzz: tone() cycle complete, releasing mutex
+1132511,watchdog: PPG lost contact, firing warning beep
+1132558,buzz: beep 1/1 freq=3000 waiting for mutex
+1132603,buzz: mutex acquired, calling tone()
+1132951,buzz: tone() cycle complete, releasing mutex
+1132997,buzz: beep 1/3 freq=800 waiting for mutex
+1133101,buzz: mutex acquired, calling tone()
+1133352,buzz: tone() cycle complete, releasing mutex
+1133555,buzz: beep 2/3 freq=800 waiting for mutex
+1133607,buzz: mutex acquired, calling tone()
+1133857,buzz: tone() cycle complete, releasing mutex
+1134058,buzz: beep 3/3 freq=800 waiting for mutex
+1134107,buzz: mutex acquired, calling tone()
+1134351,buzz: tone() cycle complete, releasing mutex
+1136031,watchdog: PPG lost contact, firing warning beep
+1136079,buzz: beep 1/1 freq=3000 waiting for mutex
+1136126,buzz: mutex acquired, calling tone()
+1136474,buzz: tone() cycle complete, releasing mutex
+1139550,watchdog: PPG lost contact, firing warning beep
+1139603,buzz: beep 1/1 freq=3000 waiting for mutex
+1139653,buzz: mutex acquired, calling tone()
+1140003,buzz: tone() cycle complete, releasing mutex
+1143070,watchdog: PPG lost contact, firing warning beep
+1143122,buzz: beep 1/1 freq=3000 waiting for mutex
+1143336,buzz: mutex acquired, calling tone()
+1143689,buzz: tone() cycle complete, releasing mutex
+1146750,watchdog: PPG lost contact, firing warning beep
+1146808,buzz: beep 1/1 freq=3000 waiting for mutex
+1146861,buzz: mutex acquired, calling tone()
+1147217,buzz: tone() cycle complete, releasing mutex
+1150311,watchdog: PPG lost contact, firing warning beep
+1150372,buzz: beep 1/1 freq=3000 waiting for mutex
+1150429,buzz: mutex acquired, calling tone()
+1150788,buzz: tone() cycle complete, releasing mutex
+1153882,watchdog: PPG lost contact, firing warning beep
+1153944,buzz: beep 1/1 freq=3000 waiting for mutex
+1154004,buzz: mutex acquired, calling tone()
+1154371,buzz: tone() cycle complete, releasing mutex
+1157444,watchdog: PPG lost contact, firing warning beep
+1157510,buzz: beep 1/1 freq=3000 waiting for mutex
+1157572,buzz: mutex acquired, calling tone()
+1157934,buzz: tone() cycle complete, releasing mutex
+1161029,watchdog: PPG lost contact, firing warning beep
+1161089,buzz: beep 1/1 freq=3000 waiting for mutex
+1161149,buzz: mutex acquired, calling tone()
+1161674,buzz: tone() cycle complete, releasing mutex
+1164788,watchdog: PPG lost contact, firing warning beep
+1164829,buzz: beep 1/1 freq=3000 waiting for mutex
+1164872,buzz: mutex acquired, calling tone()
+1165216,buzz: tone() cycle complete, releasing mutex
+1168268,watchdog: PPG lost contact, firing warning beep
+1168314,buzz: beep 1/1 freq=3000 waiting for mutex
+1168355,buzz: mutex acquired, calling tone()
+1168699,buzz: tone() cycle complete, releasing mutex
+1171748,watchdog: PPG lost contact, firing warning beep
+1171799,buzz: beep 1/1 freq=3000 waiting for mutex
+1171844,buzz: mutex acquired, calling tone()
+1172185,buzz: tone() cycle complete, releasing mutex
+1175279,watchdog: PPG lost contact, firing warning beep
+1175328,buzz: beep 1/1 freq=3000 waiting for mutex
+1175374,buzz: mutex acquired, calling tone()
+1175723,buzz: tone() cycle complete, releasing mutex
+1178787,watchdog: PPG lost contact, firing warning beep
+1178833,buzz: beep 1/1 freq=3000 waiting for mutex
+1178879,buzz: mutex acquired, calling tone()
+1179223,buzz: tone() cycle complete, releasing mutex
+1182467,watchdog: PPG lost contact, firing warning beep
+1182512,buzz: beep 1/1 freq=3000 waiting for mutex
+1182559,buzz: mutex acquired, calling tone()
+1182906,buzz: tone() cycle complete, releasing mutex
+1185987,watchdog: PPG lost contact, firing warning beep
+1186035,buzz: beep 1/1 freq=3000 waiting for mutex
+1186081,buzz: mutex acquired, calling tone()
+1186427,buzz: tone() cycle complete, releasing mutex
+1189507,watchdog: PPG lost contact, firing warning beep
+1189554,buzz: beep 1/1 freq=3000 waiting for mutex
+1189604,buzz: mutex acquired, calling tone()
+1189952,buzz: tone() cycle complete, releasing mutex
+1193027,watchdog: PPG lost contact, firing warning beep
+1193078,buzz: beep 1/1 freq=3000 waiting for mutex
+1193130,buzz: mutex acquired, calling tone()
+1193477,buzz: tone() cycle complete, releasing mutex
+74772,BOOT reset_reason=OTHER heap=326140
+78051,buzz: beep 1/3 freq=800 waiting for mutex
+78117,buzz: mutex acquired, calling tone()
+78381,buzz: tone() cycle complete, releasing mutex
+78594,buzz: beep 2/3 freq=800 waiting for mutex
+78656,buzz: mutex acquired, calling tone()
+79229,buzz: tone() cycle complete, releasing mutex
+79445,buzz: beep 3/3 freq=800 waiting for mutex
+79499,buzz: mutex acquired, calling tone()
+79756,buzz: tone() cycle complete, releasing mutex
+81053,watchdog: PPG lost contact, firing warning beep
+81103,buzz: beep 1/1 freq=3000 waiting for mutex
+81152,buzz: mutex acquired, calling tone()
+81503,buzz: tone() cycle complete, releasing mutex
+84573,watchdog: PPG lost contact, firing warning beep
+84624,buzz: beep 1/1 freq=3000 waiting for mutex
+84682,buzz: mutex acquired, calling tone()
+85197,buzz: tone() cycle complete, releasing mutex
+88253,watchdog: PPG lost contact, firing warning beep
+88308,buzz: beep 1/1 freq=3000 waiting for mutex
+88365,buzz: mutex acquired, calling tone()
+88721,buzz: tone() cycle complete, releasing mutex
+91815,watchdog: PPG lost contact, firing warning beep
+91878,buzz: beep 1/1 freq=3000 waiting for mutex
+91938,buzz: mutex acquired, calling tone()
+92296,buzz: tone() cycle complete, releasing mutex
+95389,watchdog: PPG lost contact, firing warning beep
+95451,buzz: beep 1/1 freq=3000 waiting for mutex
+95511,buzz: mutex acquired, calling tone()
+95869,buzz: tone() cycle complete, releasing mutex
+98932,watchdog: PPG lost contact, firing warning beep
+98995,buzz: beep 1/1 freq=3000 waiting for mutex
+99048,buzz: mutex acquired, calling tone()
+99403,buzz: tone() cycle complete, releasing mutex
+102492,watchdog: PPG lost contact, firing warning beep
+102555,buzz: beep 1/1 freq=3000 waiting for mutex
+102610,buzz: mutex acquired, calling tone()
+102966,buzz: tone() cycle complete, releasing mutex
+106021,watchdog: PPG lost contact, firing warning beep
+106081,buzz: beep 1/1 freq=3000 waiting for mutex
+106135,buzz: mutex acquired, calling tone()
+106492,buzz: tone() cycle complete, releasing mutex
+109581,watchdog: PPG lost contact, firing warning beep
+109640,buzz: beep 1/1 freq=3000 waiting for mutex
+109698,buzz: mutex acquired, calling tone()
+110053,buzz: tone() cycle complete, releasing mutex
+113101,watchdog: PPG lost contact, firing warning beep
+113140,buzz: beep 1/1 freq=3000 waiting for mutex
+113183,buzz: mutex acquired, calling tone()
+113527,buzz: tone() cycle complete, releasing mutex
+116581,watchdog: PPG lost contact, firing warning beep
+116624,buzz: beep 1/1 freq=3000 waiting for mutex
+116665,buzz: mutex acquired, calling tone()
+117002,buzz: tone() cycle complete, releasing mutex
+120062,watchdog: PPG lost contact, firing warning beep
+120100,buzz: beep 1/1 freq=3000 waiting for mutex
+120143,buzz: mutex acquired, calling tone()
+120488,buzz: tone() cycle complete, releasing mutex
+123540,watchdog: PPG lost contact, firing warning beep
+123581,buzz: beep 1/1 freq=3000 waiting for mutex
+123625,buzz: mutex acquired, calling tone()
+123965,buzz: tone() cycle complete, releasing mutex
+127020,watchdog: PPG lost contact, firing warning beep
+127069,buzz: beep 1/1 freq=3000 waiting for mutex
+127114,buzz: mutex acquired, calling tone()
+127456,buzz: tone() cycle complete, releasing mutex
+130500,watchdog: PPG lost contact, firing warning beep
+130543,buzz: beep 1/1 freq=3000 waiting for mutex
+130591,buzz: mutex acquired, calling tone()
+130944,buzz: tone() cycle complete, releasing mutex
+134020,watchdog: PPG lost contact, firing warning beep
+134069,buzz: beep 1/1 freq=3000 waiting for mutex
+134113,buzz: mutex acquired, calling tone()
+134457,buzz: tone() cycle complete, releasing mutex
+137699,watchdog: PPG lost contact, firing warning beep
+137748,buzz: beep 1/1 freq=3000 waiting for mutex
+137795,buzz: mutex acquired, calling tone()
+138149,buzz: tone() cycle complete, releasing mutex
+141221,watchdog: PPG lost contact, firing warning beep
+141273,buzz: beep 1/1 freq=3000 waiting for mutex
+141323,buzz: mutex acquired, calling tone()
+141676,buzz: tone() cycle complete, releasing mutex
+144752,watchdog: PPG lost contact, firing warning beep
+144817,buzz: beep 1/1 freq=3000 waiting for mutex
+144873,buzz: mutex acquired, calling tone()
+145227,buzz: tone() cycle complete, releasing mutex
+148292,watchdog: PPG lost contact, firing warning beep
+148355,buzz: beep 1/1 freq=3000 waiting for mutex
+148415,buzz: mutex acquired, calling tone()
+148767,buzz: tone() cycle complete, releasing mutex
+151859,watchdog: PPG lost contact, firing warning beep
+151916,buzz: beep 1/1 freq=3000 waiting for mutex
+151967,buzz: mutex acquired, calling tone()
+152508,buzz: tone() cycle complete, releasing mutex
+155579,watchdog: PPG lost contact, firing warning beep
+155630,buzz: beep 1/1 freq=3000 waiting for mutex
+155685,buzz: mutex acquired, calling tone()
+156041,buzz: tone() cycle complete, releasing mutex
+159139,watchdog: PPG lost contact, firing warning beep
+159193,buzz: beep 1/1 freq=3000 waiting for mutex
+159245,buzz: mutex acquired, calling tone()
+159599,buzz: tone() cycle complete, releasing mutex
+162658,watchdog: PPG lost contact, firing warning beep
+162710,buzz: beep 1/1 freq=3000 waiting for mutex
+162762,buzz: mutex acquired, calling tone()
+163118,buzz: tone() cycle complete, releasing mutex
+166220,watchdog: PPG lost contact, firing warning beep
+166280,buzz: beep 1/1 freq=3000 waiting for mutex
+166341,buzz: mutex acquired, calling tone()
+166699,buzz: tone() cycle complete, releasing mutex
+169790,watchdog: PPG lost contact, firing warning beep
+169861,buzz: beep 1/1 freq=3000 waiting for mutex
+170113,buzz: beep 1/3 freq=800 waiting for mutex
+170171,buzz: mutex acquired, calling tone()
+170528,buzz: tone() cycle complete, releasing mutex
+170590,buzz: mutex acquired, calling tone()
+170850,buzz: tone() cycle complete, releasing mutex
+171059,buzz: beep 2/3 freq=800 waiting for mutex
+171168,buzz: mutex acquired, calling tone()
+171444,buzz: tone() cycle complete, releasing mutex
+171663,buzz: beep 3/3 freq=800 waiting for mutex
+171728,buzz: mutex acquired, calling tone()
+171991,buzz: tone() cycle complete, releasing mutex
+173618,watchdog: PPG lost contact, firing warning beep
+173681,buzz: beep 1/1 freq=3000 waiting for mutex
+173750,buzz: mutex acquired, calling tone()
+174112,buzz: tone() cycle complete, releasing mutex
+177218,watchdog: PPG lost contact, firing warning beep
+177263,buzz: beep 1/1 freq=3000 waiting for mutex
+177309,buzz: mutex acquired, calling tone()
+177650,buzz: tone() cycle complete, releasing mutex
+180738,watchdog: PPG lost contact, firing warning beep
+180783,buzz: beep 1/1 freq=3000 waiting for mutex
+180830,buzz: mutex acquired, calling tone()
+181174,buzz: tone() cycle complete, releasing mutex
+184260,watchdog: PPG lost contact, firing warning beep
+184308,buzz: beep 1/1 freq=3000 waiting for mutex
+184355,buzz: mutex acquired, calling tone()
+184705,buzz: tone() cycle complete, releasing mutex
+187992,watchdog: PPG lost contact, firing warning beep
+188045,buzz: beep 1/1 freq=3000 waiting for mutex
+188087,buzz: mutex acquired, calling tone()
+188431,buzz: tone() cycle complete, releasing mutex
+191498,watchdog: PPG lost contact, firing warning beep
+191548,buzz: beep 1/1 freq=3000 waiting for mutex
+191590,buzz: mutex acquired, calling tone()
+191932,buzz: tone() cycle complete, releasing mutex
+194978,watchdog: PPG lost contact, firing warning beep
+195023,buzz: beep 1/1 freq=3000 waiting for mutex
+195064,buzz: mutex acquired, calling tone()
+195407,buzz: tone() cycle complete, releasing mutex
+198458,watchdog: PPG lost contact, firing warning beep
+198505,buzz: beep 1/1 freq=3000 waiting for mutex
+198551,buzz: mutex acquired, calling tone()
+198899,buzz: tone() cycle complete, releasing mutex
+204538,watchdog: PPG lost contact, firing warning beep
+204585,buzz: beep 1/1 freq=3000 waiting for mutex
+204630,buzz: mutex acquired, calling tone()
+204974,buzz: tone() cycle complete, releasing mutex
+208058,watchdog: PPG lost contact, firing warning beep
+208104,buzz: beep 1/1 freq=3000 waiting for mutex
+208148,buzz: mutex acquired, calling tone()
+208488,buzz: tone() cycle complete, releasing mutex
+211538,watchdog: PPG lost contact, firing warning beep
+211584,buzz: beep 1/1 freq=3000 waiting for mutex
+211626,buzz: mutex acquired, calling tone()
+212160,buzz: tone() cycle complete, releasing mutex
+215218,watchdog: PPG lost contact, firing warning beep
+215265,buzz: beep 1/1 freq=3000 waiting for mutex
+215310,buzz: mutex acquired, calling tone()
+215658,buzz: tone() cycle complete, releasing mutex
+218739,watchdog: PPG lost contact, firing warning beep
+218795,buzz: beep 1/1 freq=3000 waiting for mutex
+218846,buzz: mutex acquired, calling tone()
+219196,buzz: tone() cycle complete, releasing mutex
+222263,watchdog: PPG lost contact, firing warning beep
+222319,buzz: beep 1/1 freq=3000 waiting for mutex
+222367,buzz: mutex acquired, calling tone()
+222713,buzz: tone() cycle complete, releasing mutex
+225777,watchdog: PPG lost contact, firing warning beep
+225832,buzz: beep 1/1 freq=3000 waiting for mutex
+225887,buzz: mutex acquired, calling tone()
+226242,buzz: tone() cycle complete, releasing mutex
+229297,watchdog: PPG lost contact, firing warning beep
+229355,buzz: beep 1/1 freq=3000 waiting for mutex
+229602,buzz: mutex acquired, calling tone()
+229959,buzz: tone() cycle complete, releasing mutex
+233017,watchdog: PPG lost contact, firing warning beep
+233075,buzz: beep 1/1 freq=3000 waiting for mutex
+233138,buzz: mutex acquired, calling tone()
+233498,buzz: tone() cycle complete, releasing mutex
+236577,watchdog: PPG lost contact, firing warning beep
+236642,buzz: beep 1/1 freq=3000 waiting for mutex
+236699,buzz: mutex acquired, calling tone()
+237063,buzz: tone() cycle complete, releasing mutex
+240137,watchdog: PPG lost contact, firing warning beep
+240198,buzz: beep 1/1 freq=3000 waiting for mutex
+240258,buzz: mutex acquired, calling tone()
+240618,buzz: tone() cycle complete, releasing mutex
+243697,watchdog: PPG lost contact, firing warning beep
+243762,buzz: beep 1/1 freq=3000 waiting for mutex
+243819,buzz: mutex acquired, calling tone()
+244178,buzz: tone() cycle complete, releasing mutex
+247257,watchdog: PPG lost contact, firing warning beep
+247318,buzz: beep 1/1 freq=3000 waiting for mutex
+247564,buzz: mutex acquired, calling tone()
+247923,buzz: tone() cycle complete, releasing mutex
+251017,watchdog: PPG lost contact, firing warning beep
+251115,buzz: beep 1/1 freq=3000 waiting for mutex
+251161,buzz: mutex acquired, calling tone()
+251504,buzz: tone() cycle complete, releasing mutex
+254579,watchdog: PPG lost contact, firing warning beep
+254631,buzz: beep 1/1 freq=3000 waiting for mutex
+254678,buzz: mutex acquired, calling tone()
+255024,buzz: tone() cycle complete, releasing mutex
+258119,watchdog: PPG lost contact, firing warning beep
+258172,buzz: beep 1/1 freq=3000 waiting for mutex
+258216,buzz: mutex acquired, calling tone()
+258560,buzz: tone() cycle complete, releasing mutex
+261617,watchdog: PPG lost contact, firing warning beep
+261668,buzz: beep 1/1 freq=3000 waiting for mutex
+261717,buzz: mutex acquired, calling tone()
+262063,buzz: tone() cycle complete, releasing mutex
+262218,buzz: beep 1/3 freq=800 waiting for mutex
+262282,buzz: mutex acquired, calling tone()
+262536,buzz: tone() cycle complete, releasing mutex
+262731,buzz: beep 2/3 freq=800 waiting for mutex
+262783,buzz: mutex acquired, calling tone()
+263035,buzz: tone() cycle complete, releasing mutex
+263556,buzz: beep 3/3 freq=800 waiting for mutex
+263611,buzz: mutex acquired, calling tone()
+263859,buzz: tone() cycle complete, releasing mutex
+265137,watchdog: PPG lost contact, firing warning beep
+265189,buzz: beep 1/1 freq=3000 waiting for mutex
+265238,buzz: mutex acquired, calling tone()
+265586,buzz: tone() cycle complete, releasing mutex
+268657,watchdog: PPG lost contact, firing warning beep
+268707,buzz: beep 1/1 freq=3000 waiting for mutex
+268759,buzz: mutex acquired, calling tone()
+269109,buzz: tone() cycle complete, releasing mutex
+272177,watchdog: PPG lost contact, firing warning beep
+272230,buzz: beep 1/1 freq=3000 waiting for mutex
+272283,buzz: mutex acquired, calling tone()
+272631,buzz: tone() cycle complete, releasing mutex
+275697,watchdog: PPG lost contact, firing warning beep
+275746,buzz: beep 1/1 freq=3000 waiting for mutex
+275802,buzz: mutex acquired, calling tone()
+276154,buzz: tone() cycle complete, releasing mutex
+279217,watchdog: PPG lost contact, firing warning beep
+279269,buzz: beep 1/1 freq=3000 waiting for mutex
+279321,buzz: mutex acquired, calling tone()
+279668,buzz: tone() cycle complete, releasing mutex
+282939,watchdog: PPG lost contact, firing warning beep
+282996,buzz: beep 1/1 freq=3000 waiting for mutex
+283047,buzz: mutex acquired, calling tone()
+283399,buzz: tone() cycle complete, releasing mutex
+286470,watchdog: PPG lost contact, firing warning beep
+286527,buzz: beep 1/1 freq=3000 waiting for mutex
+286582,buzz: mutex acquired, calling tone()
+286939,buzz: tone() cycle complete, releasing mutex
+290017,watchdog: PPG lost contact, firing warning beep
+290077,buzz: beep 1/1 freq=3000 waiting for mutex
+290134,buzz: mutex acquired, calling tone()
+290488,buzz: tone() cycle complete, releasing mutex
+293577,watchdog: PPG lost contact, firing warning beep
+293641,buzz: beep 1/1 freq=3000 waiting for mutex
+293694,buzz: mutex acquired, calling tone()
+294043,buzz: tone() cycle complete, releasing mutex
+297097,watchdog: PPG lost contact, firing warning beep
+297149,buzz: beep 1/1 freq=3000 waiting for mutex
+297202,buzz: mutex acquired, calling tone()
+297744,buzz: tone() cycle complete, releasing mutex
+300817,watchdog: PPG lost contact, firing warning beep
+300870,buzz: beep 1/1 freq=3000 waiting for mutex
+300928,buzz: mutex acquired, calling tone()
+301285,buzz: tone() cycle complete, releasing mutex
+304377,watchdog: PPG lost contact, firing warning beep
+304439,buzz: beep 1/1 freq=3000 waiting for mutex
+304498,buzz: mutex acquired, calling tone()
+304852,buzz: tone() cycle complete, releasing mutex
+307937,watchdog: PPG lost contact, firing warning beep
+308002,buzz: beep 1/1 freq=3000 waiting for mutex
+308062,buzz: mutex acquired, calling tone()
+308421,buzz: tone() cycle complete, releasing mutex
+311497,watchdog: PPG lost contact, firing warning beep
+311556,buzz: beep 1/1 freq=3000 waiting for mutex
+311613,buzz: mutex acquired, calling tone()
+311973,buzz: tone() cycle complete, releasing mutex
+315057,watchdog: PPG lost contact, firing warning beep
+315122,buzz: beep 1/1 freq=3000 waiting for mutex
+315212,buzz: mutex acquired, calling tone()
+315743,buzz: tone() cycle complete, releasing mutex
+318819,watchdog: PPG lost contact, firing warning beep
+318859,buzz: beep 1/1 freq=3000 waiting for mutex
+318903,buzz: mutex acquired, calling tone()
+319244,buzz: tone() cycle complete, releasing mutex
+322315,watchdog: PPG lost contact, firing warning beep
+322367,buzz: beep 1/1 freq=3000 waiting for mutex
+322413,buzz: mutex acquired, calling tone()
+322754,buzz: tone() cycle complete, releasing mutex
+325816,watchdog: PPG lost contact, firing warning beep
+325862,buzz: beep 1/1 freq=3000 waiting for mutex
+325906,buzz: mutex acquired, calling tone()
+326255,buzz: tone() cycle complete, releasing mutex
+329337,watchdog: PPG lost contact, firing warning beep
+329384,buzz: beep 1/1 freq=3000 waiting for mutex
+329426,buzz: mutex acquired, calling tone()
+329771,buzz: tone() cycle complete, releasing mutex
+332817,watchdog: PPG lost contact, firing warning beep
+332867,buzz: beep 1/1 freq=3000 waiting for mutex
+333106,buzz: mutex acquired, calling tone()
+333455,buzz: tone() cycle complete, releasing mutex
+336537,watchdog: PPG lost contact, firing warning beep
+336586,buzz: beep 1/1 freq=3000 waiting for mutex
+336638,buzz: mutex acquired, calling tone()
+336986,buzz: tone() cycle complete, releasing mutex
+340070,watchdog: PPG lost contact, firing warning beep
+340161,buzz: beep 1/1 freq=3000 waiting for mutex
+340209,buzz: mutex acquired, calling tone()
+340558,buzz: tone() cycle complete, releasing mutex
+343617,watchdog: PPG lost contact, firing warning beep
+343672,buzz: beep 1/1 freq=3000 waiting for mutex
+343724,buzz: mutex acquired, calling tone()
+344076,buzz: tone() cycle complete, releasing mutex
+347137,watchdog: PPG lost contact, firing warning beep
+347201,buzz: beep 1/1 freq=3000 waiting for mutex
+347254,buzz: mutex acquired, calling tone()
+347602,buzz: tone() cycle complete, releasing mutex
+350697,watchdog: PPG lost contact, firing warning beep
+350934,buzz: beep 1/1 freq=3000 waiting for mutex
+350983,buzz: mutex acquired, calling tone()
+351331,buzz: tone() cycle complete, releasing mutex
+354060,buzz: beep 1/3 freq=800 waiting for mutex
+354122,buzz: mutex acquired, calling tone()
+354417,watchdog: PPG lost contact, firing warning beep
+354470,buzz: tone() cycle complete, releasing mutex
+354522,buzz: beep 1/1 freq=3000 waiting for mutex
+354580,buzz: mutex acquired, calling tone()
+354672,buzz: beep 2/3 freq=800 waiting for mutex
+354931,buzz: tone() cycle complete, releasing mutex
+354991,buzz: mutex acquired, calling tone()
+355300,buzz: tone() cycle complete, releasing mutex
+355516,buzz: beep 3/3 freq=800 waiting for mutex
+355574,buzz: mutex acquired, calling tone()
+355831,buzz: tone() cycle complete, releasing mutex
+358017,watchdog: PPG lost contact, firing warning beep
+358078,buzz: beep 1/1 freq=3000 waiting for mutex
+358139,buzz: mutex acquired, calling tone()
+358498,buzz: tone() cycle complete, releasing mutex
+361578,watchdog: PPG lost contact, firing warning beep
+361638,buzz: beep 1/1 freq=3000 waiting for mutex
+361692,buzz: mutex acquired, calling tone()
+362046,buzz: tone() cycle complete, releasing mutex
+365112,watchdog: PPG lost contact, firing warning beep
+365174,buzz: beep 1/1 freq=3000 waiting for mutex
+365233,buzz: mutex acquired, calling tone()
+365586,buzz: tone() cycle complete, releasing mutex
+368658,watchdog: PPG lost contact, firing warning beep
+368724,buzz: beep 1/1 freq=3000 waiting for mutex
+368781,buzz: mutex acquired, calling tone()
+369143,buzz: tone() cycle complete, releasing mutex
+372218,watchdog: PPG lost contact, firing warning beep
+372284,buzz: beep 1/1 freq=3000 waiting for mutex
+372341,buzz: mutex acquired, calling tone()
+372703,buzz: tone() cycle complete, releasing mutex
+375818,watchdog: PPG lost contact, firing warning beep
+375886,buzz: beep 1/1 freq=3000 waiting for mutex
+375948,buzz: mutex acquired, calling tone()
+376310,buzz: tone() cycle complete, releasing mutex
+379378,watchdog: PPG lost contact, firing warning beep
+379443,buzz: beep 1/1 freq=3000 waiting for mutex
+379507,buzz: mutex acquired, calling tone()
+379912,buzz: tone() cycle complete, releasing mutex
+382978,watchdog: PPG lost contact, firing warning beep
+383028,buzz: beep 1/1 freq=3000 waiting for mutex
+383074,buzz: mutex acquired, calling tone()
+383610,buzz: tone() cycle complete, releasing mutex
+386658,watchdog: PPG lost contact, firing warning beep
+386698,buzz: beep 1/1 freq=3000 waiting for mutex
+386736,buzz: mutex acquired, calling tone()
+387077,buzz: tone() cycle complete, releasing mutex
+390145,watchdog: PPG lost contact, firing warning beep
+390200,buzz: beep 1/1 freq=3000 waiting for mutex
+390240,buzz: mutex acquired, calling tone()
+390587,buzz: tone() cycle complete, releasing mutex
+393658,watchdog: PPG lost contact, firing warning beep
+393705,buzz: beep 1/1 freq=3000 waiting for mutex
+393750,buzz: mutex acquired, calling tone()
+394095,buzz: tone() cycle complete, releasing mutex
+397178,watchdog: PPG lost contact, firing warning beep
+397226,buzz: beep 1/1 freq=3000 waiting for mutex
+397268,buzz: mutex acquired, calling tone()
+397610,buzz: tone() cycle complete, releasing mutex
+400658,watchdog: PPG lost contact, firing warning beep
+400698,buzz: beep 1/1 freq=3000 waiting for mutex
+400926,buzz: mutex acquired, calling tone()
+401273,buzz: tone() cycle complete, releasing mutex
+404339,watchdog: PPG lost contact, firing warning beep
+404382,buzz: beep 1/1 freq=3000 waiting for mutex
+404424,buzz: mutex acquired, calling tone()
+404766,buzz: tone() cycle complete, releasing mutex
+407819,watchdog: PPG lost contact, firing warning beep
+407862,buzz: beep 1/1 freq=3000 waiting for mutex
+407912,buzz: mutex acquired, calling tone()
+408255,buzz: tone() cycle complete, releasing mutex
+411341,watchdog: PPG lost contact, firing warning beep
+411388,buzz: beep 1/1 freq=3000 waiting for mutex
+411434,buzz: mutex acquired, calling tone()
+411785,buzz: tone() cycle complete, releasing mutex
+414876,watchdog: PPG lost contact, firing warning beep
+414926,buzz: beep 1/1 freq=3000 waiting for mutex
+414979,buzz: mutex acquired, calling tone()
+415331,buzz: tone() cycle complete, releasing mutex
+418419,watchdog: PPG lost contact, firing warning beep
+418665,buzz: beep 1/1 freq=3000 waiting for mutex
+418710,buzz: mutex acquired, calling tone()
+419058,buzz: tone() cycle complete, releasing mutex
+422139,watchdog: PPG lost contact, firing warning beep
+422198,buzz: beep 1/1 freq=3000 waiting for mutex
+422253,buzz: mutex acquired, calling tone()
+422606,buzz: tone() cycle complete, releasing mutex
+425699,watchdog: PPG lost contact, firing warning beep
+425753,buzz: beep 1/1 freq=3000 waiting for mutex
+425809,buzz: mutex acquired, calling tone()
+426166,buzz: tone() cycle complete, releasing mutex
+429259,watchdog: PPG lost contact, firing warning beep
+429315,buzz: beep 1/1 freq=3000 waiting for mutex
+429370,buzz: mutex acquired, calling tone()
+429731,buzz: tone() cycle complete, releasing mutex
+2244,BOOT reset_reason=POWERON heap=326140
