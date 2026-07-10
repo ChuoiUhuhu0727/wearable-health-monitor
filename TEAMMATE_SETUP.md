@@ -111,11 +111,20 @@ Tự động đặt, không cần tự gõ tên gì cả:
 
 ## 6. Kiểm tra data trước khi gửi
 
+**Chỉ thu 1 người / 1 lần lấy data:** không cần ghi path, chạy thẳng:
 ```powershell
-python visualize_session.py experiments/wrist/session_1_<timestamp-của-bạn>.csv
+python visualize_session.py
 ```
+— nó tự chọn file `session_*.csv` mới lấy gần nhất.
 
-(Không ghi path cũng được — nó tự chọn file mới lấy gần nhất.)
+**Thu nhiều người rồi mới lấy data 1 lần (nhiều file `session_N_*.csv` cùng lúc):**
+lệnh không-ghi-path ở trên **chỉ check được 1 file cuối cùng**, mấy file kia bị bỏ sót mà
+không báo gì cả. Phải check **từng file một**, ghi rõ tên file ra:
+```powershell
+python visualize_session.py experiments/wrist/session_1_<timestamp>.csv
+python visualize_session.py experiments/wrist/session_2_<timestamp>.csv
+```
+(Tên file chính xác thì xem lại dòng `-> saving to ...` mà `log_serial.py` in ra lúc lấy data ở bước 5.)
 
 Lệnh này vẽ ra nhịp tim + độ chuyển động của cả buổi thu, tô màu theo từng hoạt động. Data
 **ổn** sẽ có dạng: độ chuyển động (`mean_mag`/`std_mag`) tăng dần từ lying → sitting → standing
