@@ -1,0 +1,65 @@
+16012,BOOT reset_reason=OTHER heap=326248
+19137,buzz: beep 1/3 freq=4000 waiting for mutex
+2238,BOOT reset_reason=PANIC (crash) heap=326248
+5449,buzz: beep 1/3 freq=4000 waiting for mutex
+5456,buzz: mutex acquired, calling tone()
+5658,buzz: tone() cycle complete, releasing mutex
+5815,buzz: beep 2/3 freq=4000 waiting for mutex
+5821,buzz: mutex acquired, calling tone()
+6025,buzz: tone() cycle complete, releasing mutex
+6181,buzz: beep 3/3 freq=4000 waiting for mutex
+2256,BOOT reset_reason=PANIC (crash) heap=326248
+5479,buzz: beep 1/3 freq=4000 waiting for mutex
+2257,BOOT reset_reason=PANIC (crash) heap=326248
+5596,buzz: beep 1/3 freq=4000 waiting for mutex
+5631,buzz: mutex acquired, calling tone()
+5871,buzz: tone() cycle complete, releasing mutex
+6061,buzz: beep 2/3 freq=4000 waiting for mutex
+6101,buzz: mutex acquired, calling tone()
+6344,buzz: tone() cycle complete, releasing mutex
+6537,buzz: beep 3/3 freq=4000 waiting for mutex
+6577,buzz: mutex acquired, calling tone()
+6820,buzz: tone() cycle complete, releasing mutex
+65462,BOOT reset_reason=POWERON heap=326248
+15374,BOOT reset_reason=OTHER heap=326248
+18636,buzz: beep 1/3 freq=4000 waiting for mutex
+18676,buzz: mutex acquired, calling tone()
+18913,buzz: tone() cycle complete, releasing mutex
+19112,buzz: beep 2/3 freq=4000 waiting for mutex
+2237,BOOT reset_reason=PANIC (crash) heap=326248
+5499,buzz: beep 1/3 freq=4000 waiting for mutex
+5541,buzz: mutex acquired, calling tone()
+5790,buzz: tone() cycle complete, releasing mutex
+2241,BOOT reset_reason=PANIC (crash) heap=326248
+5536,buzz: beep 1/3 freq=4000 waiting for mutex
+5566,buzz: mutex acquired, calling tone()
+2392,BOOT reset_reason=PANIC (crash) heap=326248
+5618,buzz: beep 1/3 freq=4000 waiting for mutex
+5664,buzz: mutex acquired, calling tone()
+5908,buzz: tone() cycle complete, releasing mutex
+6105,buzz: beep 2/3 freq=4000 waiting for mutex
+6155,buzz: mutex acquired, calling tone()
+6403,buzz: tone() cycle complete, releasing mutex
+2237,BOOT reset_reason=PANIC (crash) heap=326248
+5510,buzz: beep 1/3 freq=4000 waiting for mutex
+2235,BOOT reset_reason=PANIC (crash) heap=326248
+5537,buzz: beep 1/3 freq=4000 waiting for mutex
+5568,buzz: mutex acquired, calling tone()
+5799,buzz: tone() cycle complete, releasing mutex
+5980,buzz: beep 2/3 freq=4000 waiting for mutex
+6013,buzz: mutex acquired, calling tone()
+6250,buzz: tone() cycle complete, releasing mutex
+6435,buzz: beep 3/3 freq=4000 waiting for mutex
+2243,BOOT reset_reason=PANIC (crash) heap=326248
+5658,buzz: beep 1/3 freq=4000 waiting for mutex
+2457,BOOT reset_reason=PANIC (crash) heap=326248
+5740,buzz: beep 1/3 freq=4000 waiting for mutex
+5778,buzz: mutex acquired, calling tone()
+6016,buzz: tone() cycle complete, releasing mutex
+6206,buzz: beep 2/3 freq=4000 waiting for mutex
+6250,buzz: mutex acquired, calling tone()
+6488,buzz: tone() cycle complete, releasing mutex
+6677,buzz: beep 3/3 freq=4000 waiting for mutex
+6718,buzz: mutex acquired, calling tone()
+6961,buzz: tone() cycle complete, releasing mutex
+2242,BOOT reset_reason=POWERON heap=326248
