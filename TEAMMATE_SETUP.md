@@ -9,18 +9,25 @@ PlatformIO or to touch the firmware at all, just the Python scripts below.
 
 ## 0. Prerequisites (one-time install)
 
-1. Install Git for Windows: https://git-scm.com/download/win (accept all defaults)
-2. Install Python 3.10+: https://www.python.org/downloads/ — **check "Add python.exe to PATH"** during install
-3. Accept the GitHub collaborator invite email vịt sends you (check your inbox/spam)
-4. Have the wearable device charged/powered (battery or power bank — not USB into your laptop for the actual activities)
+1. Install Python 3.10+: https://www.python.org/downloads/ — **check "Add python.exe to PATH"** during install
+2. Accept the GitHub collaborator invite email vịt sends you (check your inbox/spam)
+3. Have the wearable device charged/powered (battery or power bank — not USB into your laptop for the actual activities)
+4. (Optional) Install Git for Windows: https://git-scm.com/download/win — **not required**, see Option B below if you'd rather skip this
 
 ## 1. Get the code
 
+**Option A — you have Git:**
 ```powershell
 git clone https://github.com/ChuoiUhuhu0727/wearable-health-monitor.git
 cd wearable-health-monitor
 git checkout week1-2/baseline-freertos
 ```
+
+**Option B — no Git installed:**
+1. Download the code as a ZIP (this link already points at the right branch):
+   https://github.com/ChuoiUhuhu0727/wearable-health-monitor/archive/refs/heads/week1-2/baseline-freertos.zip
+2. Extract the ZIP anywhere (e.g. Desktop). Open PowerShell and `cd` into the extracted folder.
+3. Everything below works exactly the same — Git is only needed again in step 7, which also has a no-Git option.
 
 ## 2. Install the Python dependencies
 
@@ -112,6 +119,7 @@ likely means the sensor slipped or a segment got skipped.
 
 ## 7. Push your data and open a Pull Request
 
+**Option A — you have Git:**
 ```powershell
 git checkout -b data/<your-name>
 git add experiments/wrist/
@@ -125,6 +133,18 @@ After the push, GitHub will print a URL in the terminal like:
 `https://github.com/ChuoiUhuhu0727/wearable-health-monitor/pull/new/data/<your-name>`
 
 Open that URL in your browser, click **"Create pull request"**, and you're done.
+
+**Option B — no Git installed, upload straight from the browser:**
+1. Go to https://github.com/ChuoiUhuhu0727/wearable-health-monitor
+2. Click the branch dropdown (top-left, near the file list — it may say `main`) and switch to `week1-2/baseline-freertos`
+3. Click into the `experiments` folder, then `wrist`
+4. Click **"Add file"** (top right) → **"Upload files"**
+5. Drag your new CSV files (from `experiments/wrist/` on your computer — only the ones you just created today) into the browser window
+6. Scroll down to "Commit changes": type a message like `Add wrist data session(s) from <your-name>`
+7. Select **"Create a new branch for this commit and start a pull request"**, and name the branch `data/<your-name>`
+8. Click **"Propose changes"**, then on the next page click **"Create pull request"**
+
+That's it — no local Git needed at all.
 
 ## If something breaks
 
