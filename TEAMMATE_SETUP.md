@@ -1,162 +1,162 @@
-# Setup Guide — Data Collection (Windows)
+# Hướng dẫn thu data (Windows)
 
-Follow these steps in order. Everything in a box is a command — paste it into
-**PowerShell** exactly as written.
+Làm theo thứ tự từ trên xuống. Chỗ nào có khung code thì copy-paste y nguyên vào **PowerShell**.
 
-Recording happens fully untethered (battery-powered) — the wearable is
-assumed to already be flashed and handed to you ready to go. You don't need
-PlatformIO or to touch the firmware at all, just the Python scripts below.
+Thu data chạy hoàn toàn bằng pin (không cần laptop kè kè bên cạnh lúc thu), thiết bị coi như
+đã được nạp sẵn firmware rồi. Bạn không cần đụng gì đến PlatformIO hay firmware cả — chỉ cần
+chạy mấy file Python bên dưới thôi.
 
-## 0. Prerequisites (one-time install)
+## 0. Chuẩn bị (cài 1 lần)
 
-1. Install Python 3.10+: https://www.python.org/downloads/ — **check "Add python.exe to PATH"** during install
-2. Accept the GitHub collaborator invite email vịt sends you (check your inbox/spam)
-3. Have the wearable device charged/powered (battery or power bank — not USB into your laptop for the actual activities)
-4. (Optional) Install Git for Windows: https://git-scm.com/download/win — **not required**, see Option B below if you'd rather skip this
+1. Cài Python 3.10+: https://www.python.org/downloads/ — nhớ tick **"Add python.exe to PATH"** lúc cài
+2. Nhận lời mời collaborator qua email vịt gửi (check cả spam)
+3. Sạc đầy / chuẩn bị pin cho thiết bị (dùng pin hoặc power bank — lúc thu thật thì đừng cắm USB vào laptop)
+4. (Không bắt buộc) Cài Git for Windows: https://git-scm.com/download/win — nếu không muốn cài thì xem Cách B ở bước 1
 
-## 1. Get the code
+## 1. Tải code về
 
-**Option A — you have Git:**
+**Cách A — có Git:**
 ```powershell
 git clone https://github.com/ChuoiUhuhu0727/wearable-health-monitor.git
 cd wearable-health-monitor
 git checkout week1-2/baseline-freertos
 ```
 
-**Option B — no Git installed:**
-1. Download the code as a ZIP (this link already points at the right branch):
+**Cách B — không cài Git:**
+1. Bấm link này để tải file zip (đã đúng branch sẵn rồi):
    https://github.com/ChuoiUhuhu0727/wearable-health-monitor/archive/refs/heads/week1-2/baseline-freertos.zip
-2. Extract the ZIP anywhere (e.g. Desktop). Open PowerShell and `cd` into the extracted folder.
-3. Everything below works exactly the same — Git is only needed again in step 7, which also has a no-Git option.
+2. Giải nén ra đâu đó (VD Desktop). Mở PowerShell, `cd` vào folder vừa giải nén.
+3. Từ đây trở đi làm y hệt cách A — Git chỉ cần lại ở bước 7 (mà bước đó cũng có cách không cần Git).
 
-## 2. Install the Python dependencies
+## 2. Cài thư viện Python
 
 ```powershell
 python -m pip install pyserial bleak matplotlib
 ```
 
-- `pyserial` — required, for retrieving data over USB after recording
-- `bleak` — optional, only needed if you want to watch data live during recording (recommended, see step 4)
-- `matplotlib` — optional, only needed to self-check your data before pushing (recommended, see step 6)
+- `pyserial` — bắt buộc, để lấy data qua cổng USB sau khi thu xong
+- `bleak` — không bắt buộc, chỉ cần nếu muốn xem data chạy live lúc đang thu (nên dùng, xem bước 4)
+- `matplotlib` — không bắt buộc, chỉ cần để tự vẽ kiểm tra data trước khi gửi (nên dùng, xem bước 6)
 
-## 3. Quick sensor check (before you start moving)
+## 3. Check sensor nhanh trước khi thu
 
-Plug the device into your laptop via USB, open a Serial Monitor (PlatformIO's
-plug icon, or `pio device monitor -b 115200`), and watch for ~15-30 seconds:
+Cắm thiết bị vào laptop qua USB, mở Serial Monitor (icon phích cắm của PlatformIO, hoặc gõ
+`pio device monitor -b 115200`), nhìn khoảng 15-30 giây:
 
-- `ppgOK:1` → heart-rate sensor detected, good to go
-- `ppgOK:0` or a `[WARN] MAX30102 không tìm thấy` message → sensor isn't
-  detected — check its position/connection before doing a full session,
-  otherwise that data will be unusable
+- `ppgOK:1` → cảm biến nhịp tim đang đọc được, ổn
+- `ppgOK:0` hoặc thấy dòng `[WARN] MAX30102 không tìm thấy` → cảm biến chưa đọc được —
+  chỉnh lại vị trí/dây nối trước khi thu thật, không thì data thu ra sẽ không dùng được
 
-This takes 30 seconds and saves you from redoing an entire session later.
+Bước này chỉ tốn 30 giây nhưng đỡ phải thu lại cả buổi nếu sensor bị lệch mà không biết.
 
-## 4. Record — fully untethered, with an optional live view
+## 4. Thu data — chạy pin hoàn toàn, có thể xem live
 
-1. Unplug the USB cable. Power the device from a battery/power bank instead.
-2. It automatically starts a 5-activity sequence — lying, sitting, standing,
-   walking, running — 90 seconds each (15s settle + 75s recorded).
-3. Data is saved directly onto the device as it goes — nothing is lost even
-   if you're not near a laptop, WiFi/BLE never connects, or it drops mid-way.
+1. Rút dây USB ra. Cắm pin/power bank vào thay thế.
+2. Thiết bị tự chạy 5 hoạt động liên tiếp — lying, sitting, standing, walking, running —
+   mỗi hoạt động 90 giây (15s đầu để ổn định + 75s data sạch).
+3. Data được ghi thẳng vào bộ nhớ thiết bị ngay lúc thu — không cần laptop ở gần, không cần
+   BLE/WiFi kết nối, có mất kết nối giữa chừng cũng không sao, data vẫn an toàn.
 
-**Recommended: run the live view for stationary activities.**
-The buzzer's audio output is not reliable on battery power (a known,
-unresolved hardware quirk), so don't rely on beeps to know what's happening.
-Instead, from your laptop:
+**Nên làm: bật xem live cho mấy hoạt động đứng yên.**
+Buzzer hiện chạy pin không kêu ổn định (lỗi phần cứng đã biết, chưa fix được), nên đừng dựa
+vào tiếng bíp để biết đang ở hoạt động nào. Thay vào đó, mở laptop chạy:
 
 ```powershell
 python log_ble.py
 ```
 
-Keep the laptop within about a meter of the device. While connected, the
-terminal tells you exactly what's going on — no guessing:
-- `=== NOW RECORDING: STANDING ===` when an activity starts, plus what's next
-- `[!] Switching to 'walking' in 5s — get ready` in the last 5 seconds of each activity
-- `[WARNING] PPG sensor lost contact` if the sensor isn't reading you properly — **fix
-  it immediately** (adjust the strap) rather than finishing the session and finding out later
+Để laptop cách thiết bị trong khoảng 1m. Lúc đang kết nối, terminal sẽ báo rõ luôn, không
+cần đoán:
+- `=== NOW RECORDING: STANDING ===` — báo hoạt động vừa chuyển, kèm hoạt động tiếp theo là gì
+- `[!] Switching to 'walking' in 5s — get ready` — đếm ngược 5 giây cuối trước khi chuyển hoạt động
+- `[WARNING] PPG sensor lost contact` — cảm biến nhịp tim bị lệch, **chỉnh lại strap ngay lúc đó**
+  luôn, đừng để thu xong mới biết
 
-**This will disconnect once you start walking/running** — BLE range is short
-(roughly a meter), and that's expected, not an error. You'll see
-`[WARN] BLE disconnected — likely moved out of range` — your data is still
-safe on the device's flash. Before walking away, just note the time: each
-activity is a fixed 90 seconds, in the order above, so once you've seen the
-"NOW RECORDING: WALKING" banner you can count 90s yourself (phone timer) for
-the walking and running legs.
+**Lúc bắt đầu đi bộ/chạy thì màn hình sẽ báo mất kết nối** — BLE tầm ngắn (~1m) nên chuyện này
+bình thường, không phải lỗi. Sẽ thấy dòng `[WARN] BLE disconnected — likely moved out of range`,
+data vẫn an toàn trong flash của thiết bị. Trước khi đi xa laptop, nhớ giờ lại: mỗi hoạt động
+đúng 90 giây, theo thứ tự trên — vừa thấy banner "NOW RECORDING: WALKING" là có thể tự bấm giờ
+điện thoại 90s cho 2 hoạt động walking/running còn lại.
 
-## 5. Retrieve the recorded data
+## 5. Lấy data về máy
 
 ```powershell
 python log_serial.py COM3
 ```
 
-(Replace `COM3` with your device's actual port — check Device Manager → Ports
-if unsure.)
+(Đổi `COM3` thành đúng cổng của thiết bị — check ở Device Manager → Ports nếu không chắc.)
 
-**Important — start this script BEFORE plugging in / resetting the device.**
-It listens first, then you plug in or press reset; it grabs a short window
-right at boot to pull the data off. If it times out, just reset the board
-again — the script keeps retrying automatically.
+**Quan trọng — chạy lệnh này TRƯỚC khi cắm/reset thiết bị.** Script sẽ đứng chờ, rồi bạn mới
+cắm hoặc bấm reset — nó bắt đúng khoảnh khắc ngay lúc boot để rút data ra. Nếu bị timeout thì
+reset lại thiết bị lần nữa, script tự thử lại.
 
-Each participant's run is saved as its own timestamped CSV in
-`experiments/wrist/`, and the script immediately prints a quality check
-(row counts, any suspicious BPM readings) so you know right away if anything
-needs to be redone.
+**Nếu thu xong mà chưa chạy lệnh này ngay thì cũng không sao** — data vẫn nằm an toàn trong
+flash của thiết bị, không tự mất. Có thể thu nhiều người liên tiếp (chỉ cần tắt/bật lại nguồn
+giữa mỗi người) rồi mới chạy `log_serial.py` một lần để lấy hết ra cùng lúc. Chỉ cần nhớ đừng
+để quá lâu — thiết bị chỉ chứa tối đa 20 lượt thu, quá số đó thì các lượt sau sẽ ghi đè lẫn nhau.
 
-## 6. Check your data before pushing
+Mỗi lượt thu được lưu thành 1 file CSV riêng có timestamp, trong `experiments/wrist/`, và
+script tự in luôn 1 bảng kiểm tra chất lượng (đếm số dòng, nhịp tim có bất thường không) để
+biết ngay có cần thu lại không.
+
+## 6. Kiểm tra data trước khi gửi
 
 ```powershell
-python visualize_session.py experiments/wrist/session_1_<your-timestamp>.csv
+python visualize_session.py experiments/wrist/session_1_<timestamp-của-bạn>.csv
 ```
 
-(Omit the path to auto-pick the most recently retrieved file.)
+(Không ghi path cũng được — nó tự chọn file mới lấy gần nhất.)
 
-This plots BPM and motion for the whole session, shaded by activity. What a
-**good** session looks like: motion (`mean_mag`/`std_mag`) trending upward
-through lying → sitting → standing → walking → running, roughly in that
-order of intensity. If your plot looks flat across all 5 activities, or has
-a big unexplained dead zone, message vịt with the plot before pushing —
-likely means the sensor slipped or a segment got skipped.
+Lệnh này vẽ ra nhịp tim + độ chuyển động của cả buổi thu, tô màu theo từng hoạt động. Data
+**ổn** sẽ có dạng: độ chuyển động (`mean_mag`/`std_mag`) tăng dần từ lying → sitting → standing
+→ walking → running, đúng theo thứ tự cường độ tăng dần. Nếu thấy đồ thị phẳng lì suốt cả 5
+hoạt động, hoặc có 1 đoạn trống bất thường không giải thích được, chụp gửi vịt xem trước khi
+push — nhiều khả năng là sensor bị tuột hoặc bị bỏ sót 1 đoạn.
 
-## 7. Push your data and open a Pull Request
+## 7. Gửi data lên GitHub, mở Pull Request
 
-**Option A — you have Git:**
+**Chỉ gửi file bắt đầu bằng `session_` và đuôi `.csv`** (VD: `session_1_20260710_142941.csv`)
+— đây là data thật lấy ra từ flash thiết bị. Các file khác **không cần gửi**:
+- `diag_*.log` — log debug nội bộ, không phải data
+- `ble_live_*.csv` — chỉ là bản xem live lúc thu, có thể thiếu dòng do rớt kết nối, không phải bản chuẩn
+- `*_plot.png` — ảnh tự vẽ để kiểm tra ở bước 6, không phải data
+
+**Cách A — có Git:**
 ```powershell
-git checkout -b data/<your-name>
+git checkout -b data/<tên-bạn>
 git add experiments/wrist/
-git commit -m "Add wrist data session(s) from <your-name>"
-git push origin data/<your-name>
+git commit -m "Add wrist data session(s) from <tên-bạn>"
+git push origin data/<tên-bạn>
 ```
 
-Replace `<your-name>` with your actual name (e.g. `data/khang`).
+Đổi `<tên-bạn>` thành tên thật (VD `data/khang`).
 
-After the push, GitHub will print a URL in the terminal like:
-`https://github.com/ChuoiUhuhu0727/wearable-health-monitor/pull/new/data/<your-name>`
+Sau khi push, terminal sẽ in ra 1 link kiểu:
+`https://github.com/ChuoiUhuhu0727/wearable-health-monitor/pull/new/data/<tên-bạn>`
 
-Open that URL in your browser, click **"Create pull request"**, and you're done.
+Mở link đó, bấm **"Create pull request"** là xong.
 
-**Option B — no Git installed, upload straight from the browser:**
-1. Go to https://github.com/ChuoiUhuhu0727/wearable-health-monitor
-2. Click the branch dropdown (top-left, near the file list — it may say `main`) and switch to `week1-2/baseline-freertos`
-3. Click into the `experiments` folder, then `wrist`
-4. Click **"Add file"** (top right) → **"Upload files"**
-5. Drag your new CSV files (from `experiments/wrist/` on your computer — only the ones you just created today) into the browser window
-6. Scroll down to "Commit changes": type a message like `Add wrist data session(s) from <your-name>`
-7. Select **"Create a new branch for this commit and start a pull request"**, and name the branch `data/<your-name>`
-8. Click **"Propose changes"**, then on the next page click **"Create pull request"**
+**Cách B — không cài Git, upload thẳng trên web:**
+1. Vào https://github.com/ChuoiUhuhu0727/wearable-health-monitor
+2. Bấm vào ô chọn branch (góc trên trái, gần danh sách file — đang ghi `main`), đổi sang `week1-2/baseline-freertos`
+3. Bấm vào folder `experiments` → `wrist`
+4. Bấm **"Add file"** (góc phải trên) → **"Upload files"**
+5. Kéo thả các file `session_*.csv` mới thu (chỉ mấy file mới tạo hôm nay thôi) vào
+6. Kéo xuống dưới, ghi commit message kiểu: `Add wrist data session(s) from <tên-bạn>`
+7. Chọn **"Create a new branch for this commit and start a pull request"**, đặt tên branch `data/<tên-bạn>`
+8. Bấm **"Propose changes"**, rồi bấm **"Create pull request"** ở trang tiếp theo
 
-That's it — no local Git needed at all.
+Xong — không cần cài Git gì cả.
 
-## If something breaks
+## Nếu gặp lỗi
 
-- Sensor check shows `ppgOK:0` → the MAX30102 isn't detected. Check its wiring/
-  positioning before recording — data collected in this state is unusable.
-- `log_ble.py` says "Device not found" and keeps retrying → the device isn't
-  advertising (not powered, or already connected to something else) or
-  you're too far away — get within a meter and check the battery.
-- `log_serial.py` keeps timing out → make sure you started the script
-  *before* resetting the device, and that you picked the right COM port.
-- `python -m pip install ...` fails → make sure `pip` works at all: run
-  `python -m pip --version` first; if that errors, Python wasn't added to PATH
-  during install (reinstall Python and check the PATH box).
-- `git push` says "permission denied" → the collaborator invite wasn't accepted
-  yet — check email, or ask vịt to resend it.
+- Check sensor báo `ppgOK:0` → MAX30102 chưa đọc được. Chỉnh lại dây/vị trí trước khi thu —
+  thu trong lúc này thì data không dùng được.
+- `log_ble.py` báo "Device not found" và cứ thử lại mãi → thiết bị chưa bật nguồn, đang kết
+  nối với máy khác rồi, hoặc để quá xa — lại gần trong 1m và check lại pin.
+- `log_serial.py` cứ bị timeout → nhớ chạy script này TRƯỚC khi cắm/reset thiết bị, và check
+  lại đúng cổng COM chưa.
+- `python -m pip install ...` báo lỗi → check `pip` có chạy được không: gõ `python -m pip --version`
+  trước, nếu lỗi thì lúc cài Python chưa tick "Add to PATH" (cài lại và tick ô đó).
+- `git push` báo "permission denied" → lời mời collaborator chưa được accept — check email,
+  hoặc nhắn vịt gửi lại.
