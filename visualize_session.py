@@ -6,8 +6,9 @@ it for training.
 Works on either kind of CSV this project produces:
   - session_*.csv   (from log_serial.py — the real flash-backed dataset)
   - ble_live_*.csv  (from log_ble.py — live-view only, may have gaps)
-Both share the same core columns; ble_live_*.csv has two extra ones
-(ppgOK, seconds_left) which are used here if present but not required.
+Both now carry ppg_contact (live PPG contact status per row); ble_live_*.csv
+has one extra column beyond that (seconds_left), used here if present but
+not required.
 
 Usage:
     pip install matplotlib
@@ -58,7 +59,7 @@ def read_rows(path):
                 }
             except (KeyError, ValueError):
                 continue  # skip malformed/partial rows (e.g. a mid-write BLE packet)
-            ppg = r.get("ppgOK")
+            ppg = r.get("ppg_contact")
             row["ppg_ok"] = None if ppg in (None, "") else (ppg == "1")
             rows.append(row)
     return rows

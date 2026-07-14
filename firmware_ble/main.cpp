@@ -86,7 +86,12 @@
 #define STRIDE_SIZE    10
 #define ACTIVITY_GATE  150.0f    // bỏ qua window yên tĩnh (rest≈7, walk≈200–800)
 
-// Queue depths
+// Live PPG contact — how long without a good IR sample before a row is
+// marked "contact lost". Shared by the watchdog buzzer AND the per-row
+// ppg_contact flag written to flash/BLE, so both agree on the same threshold.
+#define PPG_CONTACT_TIMEOUT_MS 3000
+
+// Queue depthspython
 #define IMU_Q_DEPTH    5
 #define PPG_Q_DEPTH    20        // PPG nhanh hơn IMU 4x nên buffer to hơn
 #define OUT_Q_DEPTH    3
@@ -95,6 +100,7 @@
 #define BUZZER_PIN       3          // D2 on XIAO ESP32-S3
 #define SESSION_MS       90000      // 90 seconds per activity (15s transition + 75s clean)
 #define TRANSITION_MS    15000      // first 15s of each session — body settling, not clean data
+#define PREP_MS          30000      // silent window before activity 1 — time to get into position
 #define NUM_SESSIONS     5
 
 // Onboard flash logging (LittleFS) — untethered recording, retrieved later over Serial
@@ -104,11 +110,11 @@
 #define SVC_UUID         "AA10D001-0000-0000-0000-000000000001"
 #define CHAR_STREAM_UUID "AA10D002-0000-0000-0000-000000000001"
 
-// Inherited from the Option 4 branch, where it was set to 0 to isolate a
-// WiFi debugging variable. That reasoning doesn't apply here, but the
-// underlying "no audible sound when untethered" issue is a separate,
-// still-unresolved mystery either way — leaving it off by default so this
-// branch doesn't reopen that thread by accident. Flip to 1 to re-enable.
+// Kept off (2026-07-14 decision): audible cues now come from the laptop
+// side (log_ble.py, via winsound) instead of this hardware buzzer — sidesteps
+// the still-unresolved "no audible sound when untethered" issue inherited
+// from the Option 4 branch entirely, rather than debugging it. Flip to 1
+// only if testing tethered and want the hardware buzzer as well.
 #define BUZZER_ENABLED 0
 
 // Task stack sizes (bytes)
@@ -137,6 +143,7 @@ struct OutputResult {
     float std_mag;
     float peak_rel;
     float peak_max;
+    bool  ppg_contact;     // live: good IR sample seen within PPG_CONTACT_TIMEOUT_MS?
 };
 
 // -----------------------------------------------------------------------
@@ -160,6 +167,17 @@ static const char* ACTIVITY_LABELS[NUM_SESSIONS] = {
 // read by task_ble_streamer to label each row it writes to flash and BLE.
 static volatile int           currentSessionIndex = 0;
 static volatile unsigned long sessionStartMs       = 0;
+
+// False during the PREP_MS window right after boot — task_ble_streamer
+// discards windows until this flips true, so rows recorded before the
+// participant is actually in position (still getting into place after
+// hearing "recording starts") never make it into the dataset.
+static volatile bool          protocolStarted      = false;
+
+// True once all 5 activities are done for this boot — gates the on-demand
+// dump trigger below (checkSerialDumpRequest()), so it can never fire
+// mid-recording and delete/corrupt the still-open session file.
+static volatile bool          protocolFinished     = false;
 
 static File sessionFile;   // open for the whole run, closed when the 5th session ends
 static File diagFile;      // open for the whole run — forensic log independent of USB/Serial
@@ -260,6 +278,34 @@ static void dumpAndClearSessions() {
     Serial.println("===== SESSION DUMP END =====\n");
 }
 
+// -----------------------------------------------------------------------
+// ON-DEMAND DUMP TRIGGER — lets retrieval happen any time after this run's
+// protocol finishes, no reboot required at all. Added because reset access
+// disappeared once the board went into its enclosure, and both software
+// workarounds tried (DTR pulse, relying on a timed unplug/replug) proved
+// unreliable on this board/OS combo — this sidesteps needing a reset in
+// the first place instead of chasing those further.
+//
+// Gated on protocolFinished: dumping mid-recording would open/delete the
+// SAME file task_ble_streamer still has open for writing — real corruption
+// risk, not just an inconvenience. Called from task_classifier's loop,
+// which already runs on a reliable ~40-60ms cycle regardless of session
+// state (same task the BLE advertising watchdog piggybacks on).
+// -----------------------------------------------------------------------
+static void checkSerialDumpRequest() {
+    if (!Serial || !Serial.available()) return;
+    while (Serial.available()) Serial.read();   // drain whatever was sent
+
+    if (!protocolFinished) {
+        Serial.println("[BUSY] Recording still in progress — can't dump until "
+                        "all 5 activities finish.");
+        return;
+    }
+    dumpAndClearSessions();
+    Serial.println("[READY] Power off any time, or send another character to dump again "
+                    "(nothing left will just say so).");
+}
+
 // Gives you a window to request a dump right after reset — send any
 // character in Serial Monitor within WAIT_MS. Times out silently (and
 // harmlessly) when running untethered on battery, since nothing can send
@@ -289,10 +335,13 @@ static void initMPU6050() {
 
 // -----------------------------------------------------------------------
 // TASK 5: SESSION BUZZER (also the protocol's master timer)
-// Advances currentSessionIndex/sessionStartMs through the 5 fixed
-// activities, 90s each. Buzzes 3 times between activities, 5 times when
-// the whole participant run is done. buzz() is also reused by
-// task_classifier's PPG-lost-contact watchdog below (single beep).
+// Silent PREP_MS window first (time to get into position — no rows are
+// recorded during this window, see protocolStarted), then 3 buzzes signal
+// "activity 1 starts now". Advances currentSessionIndex/sessionStartMs
+// through the 5 fixed activities, 90s each — every switch (including the
+// final "all done") uses the same 3-buzz signal, so there's only one
+// pattern to recognize by ear. buzz() is also reused by task_classifier's
+// PPG-lost-contact watchdog below (single beep, different pitch).
 // -----------------------------------------------------------------------
 static void buzz(int count, int freq, int on_ms, int off_ms) {
 #if !BUZZER_ENABLED
@@ -324,7 +373,9 @@ static void buzz(int count, int freq, int on_ms, int off_ms) {
 }
 
 static void task_session_buzzer(void* arg) {
-    buzz(3, 800, 200, 150);   // recording starts now (activity 1)
+    vTaskDelay(pdMS_TO_TICKS(PREP_MS));   // silent — time to get into position
+    buzz(3, 800, 200, 150);               // recording starts now (activity 1)
+    protocolStarted = true;
 
     for (int session = 0; session < NUM_SESSIONS; session++) {
         currentSessionIndex = session;
@@ -332,19 +383,17 @@ static void task_session_buzzer(void* arg) {
 
         vTaskDelay(pdMS_TO_TICKS(SESSION_MS));
 
-        if (session < NUM_SESSIONS - 1) {
-            buzz(3, 800, 200, 150);   // next activity
-        } else {
-            buzz(5, 800, 500, 150);   // participant done
-        }
+        buzz(3, 800, 200, 150);   // next activity, or "all done" on the last one — same signal
     }
 
     if (sessionFile) {
         sessionFile.flush();
         sessionFile.close();
     }
+    protocolFinished = true;
     Serial.println("[SESSION] All 5 activities complete for this participant. "
-                    "Safe to power off, or reset to record the next one.");
+                    "Send any character any time to dump + retrieve (no reset needed), "
+                    "or power off / reset to start the next one.");
 
     vTaskDelete(nullptr);   // one participant per boot — done for this run
 }
@@ -471,6 +520,7 @@ static void task_classifier(void* arg) {
                 result.std_mag  = acc_std;
                 result.peak_rel = peak_rel;
                 result.peak_max = peak_max;
+                result.ppg_contact = (millis() - lastPpgMs) < PPG_CONTACT_TIMEOUT_MS;
 
                 xQueueSend(output_queue, &result, 0);
 
@@ -509,7 +559,7 @@ static void task_classifier(void* arg) {
         // --- C. PPG watchdog — buzz high pitch if sensor lost contact ---
         if (gotPpg) {
             lastPpgMs = millis();
-        } else if (millis() - lastPpgMs > 3000) {
+        } else if (millis() - lastPpgMs > PPG_CONTACT_TIMEOUT_MS) {
             diagLog("watchdog: PPG lost contact, firing warning beep");
             buzz(1, 3000, 300, 0);        // single high-pitch warning beep
             lastPpgMs = millis();         // reset — warns again after 3s if still lost
@@ -519,6 +569,9 @@ static void task_classifier(void* arg) {
         // Runs on this task's reliable ~40-60ms cycle, rate-limited to once
         // per 5s internally, independent of sensor/BLE state.
         bleAdvertisingWatchdog();
+
+        // --- E. On-demand dump trigger — see checkSerialDumpRequest() ---
+        checkSerialDumpRequest();
     }
 }
 
@@ -537,6 +590,9 @@ static void task_ble_streamer(void* arg) {
     while (true) {
         // Blocking — task chỉ thức khi có data
         if (xQueueReceive(output_queue, &result, portMAX_DELAY) == pdTRUE) {
+            // Still in the silent PREP_MS window — participant isn't in
+            // position yet, discard rather than log a bogus "lying" row.
+            if (!protocolStarted) continue;
 
             bool isTransition = (millis() - sessionStartMs) < TRANSITION_MS;
             unsigned long nowMs = millis();
@@ -545,7 +601,7 @@ static void task_ble_streamer(void* arg) {
             // Always happens BEFORE the BLE notify below, so a BLE range
             // problem can never delay or skip the actual data record.
             if (sessionFile) {
-                sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f\n",
+                sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f,%d\n",
                                     nowMs,
                                     ACTIVITY_LABELS[currentSessionIndex],
                                     (int)isTransition,
@@ -554,7 +610,8 @@ static void task_ble_streamer(void* arg) {
                                     result.mean_mag,
                                     result.std_mag,
                                     result.peak_rel,
-                                    result.peak_max);
+                                    result.peak_max,
+                                    (int)result.ppg_contact);
                 sessionFile.flush();
             }
 
@@ -576,11 +633,11 @@ static void task_ble_streamer(void* arg) {
                          "{\"elapsed_ms\":%lu,\"label\":\"%s\",\"is_transition\":%d,"
                          "\"activity_class\":%d,\"bpm\":%.2f,\"mean_mag\":%.1f,"
                          "\"std_mag\":%.1f,\"peak_rel\":%.2f,\"peak_max\":%.1f,"
-                         "\"ppgOK\":%d,\"seconds_left\":%d}",
+                         "\"ppg_contact\":%d,\"seconds_left\":%d}",
                          nowMs, ACTIVITY_LABELS[currentSessionIndex], (int)isTransition,
                          result.activity_class, result.bpm, result.mean_mag,
                          result.std_mag, result.peak_rel, result.peak_max,
-                         (int)ppgOK, secondsLeft);
+                         (int)result.ppg_contact, secondsLeft);
                 pStreamChar->setValue((uint8_t*)payload, strlen(payload));
                 pStreamChar->notify();
             }
@@ -632,6 +689,13 @@ class WearableServerCallbacks : public NimBLEServerCallbacks {
 // -----------------------------------------------------------------------
 static void setupBLE() {
     NimBLEDevice::init(BLE_DEVICE_NAME);
+
+    // Max TX power — was left at NimBLE's default. Cheap to try, but this
+    // is a real-RF (body attenuation / antenna orientation) symptom per
+    // earlier diagnosis, not a software config issue, so don't expect this
+    // alone to fix drops that happen standing right next to the laptop.
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+
     pBleServer = NimBLEDevice::createServer();
     static WearableServerCallbacks serverCallbacks;
     pBleServer->setCallbacks(&serverCallbacks);
@@ -730,7 +794,7 @@ void setup() {
     String sessionPath = nextSessionPath();
     sessionFile = LittleFS.open(sessionPath, "w");
     if (sessionFile) {
-        sessionFile.println("elapsed_ms,label,is_transition,activity_class,bpm,mean_mag,std_mag,peak_rel,peak_max");
+        sessionFile.println("elapsed_ms,label,is_transition,activity_class,bpm,mean_mag,std_mag,peak_rel,peak_max,ppg_contact");
         Serial.printf("[FS] Recording this run to %s\n", sessionPath.c_str());
     } else {
         Serial.println("[FATAL] Could not open a session file — recording will not be saved to flash!");

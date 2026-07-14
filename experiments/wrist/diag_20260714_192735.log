@@ -1,0 +1,11 @@
+1405021,BOOT reset_reason=OTHER heap=329200
+1408125,BLE: initial advertising start OK
+1441499,BLE: client connected
+1451440,BLE: client disconnected, restarting advertising
+1451449,BLE: advertising restarted OK
+1451457,BLE: client connected
+1732285,BLE: client disconnected, restarting advertising
+1732496,BLE: advertising restarted OK
+1734062,BLE: client connected
+1896382,BLE: client disconnected, restarting advertising
+1896590,BLE: advertising restarted OK

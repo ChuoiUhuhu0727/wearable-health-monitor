@@ -1,0 +1,41 @@
+1372013,BOOT reset_reason=POWERON heap=329200
+84080,BOOT reset_reason=OTHER heap=329200
+87190,BLE: initial advertising start OK
+69018,BOOT reset_reason=OTHER heap=329200
+72132,BLE: initial advertising start OK
+86343,BLE: client connected
+363443,BLE: client disconnected, restarting advertising
+363659,BLE watchdog: not connected AND not advertising — forcing restart
+363668,BLE watchdog: advertising restarted OK
+363746,BLE: advertising restarted OK
+397892,BLE: client connected
+426795,BLE: client disconnected, restarting advertising
+427036,BLE: advertising restarted OK
+429264,BLE: client connected
+598945,BLE: client disconnected, restarting advertising
+599245,BLE: advertising restarted OK
+1914550,BOOT reset_reason=OTHER heap=329200
+1917696,BLE: initial advertising start OK
+2344,BOOT reset_reason=OTHER heap=329200
+5521,BLE: initial advertising start OK
+2230,BOOT reset_reason=OTHER heap=329200
+5673,BLE: initial advertising start OK
+328030,watchdog: PPG lost contact, firing warning beep
+331074,watchdog: PPG lost contact, firing warning beep
+334215,watchdog: PPG lost contact, firing warning beep
+337417,watchdog: PPG lost contact, firing warning beep
+150608,BOOT reset_reason=OTHER heap=329200
+14182,BOOT reset_reason=OTHER heap=329200
+17355,BLE: initial advertising start OK
+58514,BOOT reset_reason=OTHER heap=329200
+61756,BLE: initial advertising start OK
+185668,BLE: client connected
+385166,BLE: client disconnected, restarting advertising
+385409,BLE: advertising restarted OK
+401441,BLE: client connected
+424747,BLE: client disconnected, restarting advertising
+424999,BLE: advertising restarted OK
+434537,BLE: client connected
+597655,BLE: client disconnected, restarting advertising
+597898,BLE: advertising restarted OK
+43459,BOOT reset_reason=OTHER heap=329200

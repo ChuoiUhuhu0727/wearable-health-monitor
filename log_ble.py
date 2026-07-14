@@ -8,15 +8,20 @@ is the guaranteed record. If BLE drops (expected — range is short, roughly
 a meter), you have NOT lost data, just the live view of it. Retrieve the
 real dataset from flash afterward regardless of how BLE behaved.
 
-Unlike the original version of this script, the device now embeds the
-full row (elapsed_ms, label, is_transition, activity_class, bpm, and the
-motion features) directly in each BLE notification — this script no
-longer tracks its own clock or activity label. That removes a real risk
-the old version had: the laptop's timer and the device's internal timer
-drifting apart and mislabeling data (the exact bug class that caused
-real problems earlier in this project with a manual phone-timer
-workaround). Now the device is the single source of truth for labeling,
-both on flash and over BLE.
+The device embeds the full row (elapsed_ms, label, is_transition,
+activity_class, bpm, and the motion features) directly in each BLE
+notification — for the DATASET, the device remains the single source of
+truth (both on flash and over BLE), never a locally-guessed label. That's
+what avoids the old dual-clock-drift bug class (laptop timer vs device
+timer disagreeing on what's currently being recorded).
+
+Separately, this script ALSO keeps its own predicted schedule (see
+resync()/predict()/local_ticker() in main()) purely to keep the
+switch/countdown/finish audio cues going through a BLE dropout — this
+project's BLE range is short, and cues silently stopping mid-dropout was
+worse than a locally-predicted cue. That local schedule is re-synced to
+the device's real values on every packet received, and is NEVER written
+to the CSV or treated as the actual label — only real packets get logged.
 
 Usage:
     pip install bleak
@@ -30,8 +35,11 @@ Stops after MAX_RUNTIME_S or on Ctrl+C, whichever comes first.
 import asyncio
 import csv
 import json
+import math
 import os
+import struct
 import sys
+import winsound
 from datetime import datetime
 
 from bleak import BleakScanner, BleakClient
@@ -42,11 +50,18 @@ OUTPUT_DIR       = "experiments/wrist"
 
 NUM_SESSIONS     = 5
 SESSION_S        = 90            # must match SESSION_MS in firmware_ble/main.cpp
+TRANSITION_S     = 15            # must match TRANSITION_MS in firmware_ble/main.cpp
 MAX_RUNTIME_S    = NUM_SESSIONS * SESSION_S + 60   # small buffer past the expected total
 
 BPM_MIN, BPM_MAX = 40, 180
 MIN_CLEAN_ROWS   = 50
 WARNING_COOLDOWN_S = 3    # min seconds between repeats of the same live warning
+
+# Countdown checkpoints announced before a switch (seconds remaining).
+# <=5s ones also get an audible beep — far enough out to react, close
+# enough in to actually mean "get ready now".
+COUNTDOWN_ANNOUNCE_S = {30, 15, 10, 5, 4, 3, 2, 1}
+COUNTDOWN_BEEP_S     = 5
 
 # Order matches ACTIVITY_LABELS in firmware_ble/main.cpp — the device is the
 # single source of truth for *which* label a row has; this list is only used
@@ -55,7 +70,34 @@ ACTIVITY_LABELS = ["lying", "sitting", "standing", "walking", "running"]
 
 FIELDNAMES = ["elapsed_ms", "label", "is_transition", "activity_class",
               "bpm", "mean_mag", "std_mag", "peak_rel", "peak_max",
-              "ppgOK", "seconds_left"]
+              "ppg_contact", "seconds_left"]
+
+
+def _make_beep_wav(freq_hz, duration_ms, sample_rate=44100):
+    """Full-amplitude 16-bit mono PCM WAV of a single sine tone, built by hand
+    (no numpy dependency) so beep() can play it through the real audio
+    device via winsound.PlaySound."""
+    n_samples = int(sample_rate * duration_ms / 1000)
+    samples = [int(32767 * math.sin(2 * math.pi * freq_hz * i / sample_rate)) for i in range(n_samples)]
+    data = struct.pack("<" + "h" * n_samples, *samples)
+    n_channels, bits_per_sample = 1, 16
+    byte_rate = sample_rate * n_channels * bits_per_sample // 8
+    block_align = n_channels * bits_per_sample // 8
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", 36 + len(data), b"WAVE",
+        b"fmt ", 16, 1, n_channels, sample_rate, byte_rate, block_align, bits_per_sample,
+        b"data", len(data),
+    )
+    return header + data
+
+
+def beep(freq_hz, duration_ms):
+    """Loud, reliable beep. winsound.Beep() plays through the legacy PC-speaker
+    beeper driver — most modern laptops don't have that hardware at all, so it
+    silently does nothing (no error, just no sound). This instead synthesizes
+    an actual WAV tone and plays it through the real audio device."""
+    winsound.PlaySound(_make_beep_wav(freq_hz, duration_ms), winsound.SND_MEMORY)
 
 
 def next_label(label):
@@ -75,7 +117,7 @@ def quality_check(local_path):
             per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0, "ppg_bad": 0})
             is_trans = row["is_transition"] == "1"
             bucket = per_label[label]
-            if row.get("ppgOK") == "0":
+            if row.get("ppg_contact") == "0":
                 bucket["ppg_bad"] += 1
             if is_trans:
                 bucket["trans"] += 1
@@ -142,6 +184,91 @@ async def main():
         "last_ppg_warn": -999.0,
         "last_bpm_warn": -999.0,
     }
+    # Firmware doesn't send an explicit "protocol finished" signal — after the
+    # last activity, task_classifier/task_ble_streamer keep running forever
+    # and just keep notifying seconds_left=0 for the same label indefinitely.
+    # Detect that condition ourselves instead of relying on MAX_RUNTIME_S
+    # (which is a much later fallback, not the actual end-of-protocol moment).
+    protocol_done = [False]
+
+    # wall-clock (loop time) estimate of when activity index 0 (lying) began.
+    # The whole point: the countdown/switch/finish cues must keep working
+    # through a BLE dropout (this project's own BLE range is short — see
+    # module docstring), not just when a packet happens to arrive. The
+    # protocol's timeline is fixed (prep + 5x90s in a known order), so once
+    # this anchor is known, everything else is predictable from wall-clock
+    # time alone. Re-derived from every real packet (resync()), so drift
+    # never accumulates beyond the length of whatever outage is in progress.
+    schedule = {"t0": None}
+
+    def resync(label, seconds_left, now):
+        if label not in ACTIVITY_LABELS or seconds_left is None:
+            return
+        idx = ACTIVITY_LABELS.index(label)
+        seconds_into = SESSION_S - seconds_left
+        schedule["t0"] = now - (idx * SESSION_S + seconds_into)
+
+    def predict(now):
+        """(label, seconds_left) from the schedule anchor alone — used to keep
+        announcing during a dropout. Returns (None, None) before the first
+        real packet ever arrives (no anchor yet)."""
+        if schedule["t0"] is None:
+            return None, None
+        elapsed = now - schedule["t0"]
+        idx = int(elapsed // SESSION_S)
+        if idx >= NUM_SESSIONS:
+            return ACTIVITY_LABELS[-1], 0
+        label = ACTIVITY_LABELS[idx]
+        seconds_into = elapsed - idx * SESSION_S
+        return label, max(0, round(SESSION_S - seconds_into))
+
+    def announce(label, seconds_left):
+        """Switch/countdown/finish cues — the single place that decides what
+        to print+beep, fed either by a real packet or by predict() during a
+        dropout. Whichever source notices a change first wins; the dedup
+        against live["last_label"]/last_countdown_second stops both sources
+        from double-announcing the same moment."""
+        if label is None:
+            return
+
+        if label != live["last_label"]:
+            nxt = next_label(label)
+            is_transition = seconds_left is not None and seconds_left > (SESSION_S - TRANSITION_S)
+            settling = " (first 15s settling — not clean data yet)" if is_transition else ""
+            print(f"\n=== NOW RECORDING: {label.upper()}{settling} ===")
+            print(f"    Next up after this: {nxt}" if nxt else
+                  "    This is the last activity — session ends after this.")
+            for _ in range(3):
+                beep(1200, 250)
+            live["last_label"] = label
+            live["last_countdown_second"] = None
+
+        if seconds_left is not None and seconds_left in COUNTDOWN_ANNOUNCE_S \
+                and seconds_left != live["last_countdown_second"]:
+            nxt = next_label(label)
+            if nxt:
+                print(f"  [!] Switching to '{nxt}' in {seconds_left}s — get ready")
+            else:
+                print(f"  [!] Finishing '{label}' in {seconds_left}s — last activity, session almost done")
+            if seconds_left <= COUNTDOWN_BEEP_S:
+                beep(1800, 120)
+            live["last_countdown_second"] = seconds_left
+
+        if not protocol_done[0] and next_label(label) is None and seconds_left == 0:
+            print(f"\n[DONE] '{label}' finished — all 5 activities complete. "
+                  f"Retrieve the real dataset with log_serial.py (this file is live-view only).")
+            for _ in range(3):
+                beep(1200, 250)
+            protocol_done[0] = True
+
+    async def local_ticker():
+        """Keeps switch/countdown/finish cues firing once per second using
+        predict() alone — this is what actually survives a BLE dropout,
+        since handle_notification simply doesn't run while disconnected."""
+        while not protocol_done[0]:
+            label, seconds_left = predict(asyncio.get_event_loop().time())
+            announce(label, seconds_left)
+            await asyncio.sleep(1)
 
     def handle_notification(sender, data):
         try:
@@ -157,32 +284,20 @@ async def main():
 
         label        = row["label"]
         seconds_left = row["seconds_left"]
-        ppg_ok       = row["ppgOK"]
+        ppg_ok       = row["ppg_contact"]
         now          = asyncio.get_event_loop().time()
 
-        # Device switched activity — this is the single source of truth
-        # (currentSessionIndex on the firmware), not a locally-guessed timer.
-        if label != live["last_label"]:
-            nxt = next_label(label)
-            settling = " (first 15s settling — not clean data yet)" if row["is_transition"] else ""
-            print(f"\n=== NOW RECORDING: {label.upper()}{settling} ===")
-            print(f"    Next up after this: {nxt}" if nxt else
-                  "    This is the last activity — session ends after this.")
-            live["last_label"] = label
-            live["last_countdown_second"] = None
-
-        # Countdown in the final 5s before the device switches activity.
-        if seconds_left is not None and 0 < seconds_left <= 5 \
-                and seconds_left != live["last_countdown_second"]:
-            nxt = next_label(label)
-            if nxt:
-                print(f"  [!] Switching to '{nxt}' in {seconds_left}s — get ready")
-            live["last_countdown_second"] = seconds_left
+        resync(label, seconds_left, now)
+        announce(label, seconds_left)
 
         # Sensor displacement warning — rate-limited so it doesn't spam at
-        # ~2-3 rows/sec while the condition persists.
+        # ~2-3 rows/sec while the condition persists. Single low beep, distinct
+        # from the 3-beep switch signal and the high-pitched countdown tick.
+        # No fallback during a dropout — this needs real sensor data, unlike
+        # the schedule-based cues above.
         if ppg_ok == 0 and now - live["last_ppg_warn"] > WARNING_COOLDOWN_S:
             print("  [WARNING] PPG sensor lost contact — check it's snug against your wrist")
+            beep(600, 400)
             live["last_ppg_warn"] = now
 
         # BPM sanity warning, same rate-limiting.
@@ -195,10 +310,15 @@ async def main():
             pass
 
         print(f"  [{row['elapsed_ms']:>8}] {label:8s} trans={row['is_transition']} "
-              f"bpm={row['bpm']:>6} std={row['std_mag']} ppgOK={ppg_ok} left={seconds_left}s")
+              f"bpm={row['bpm']:>6} std={row['std_mag']} ppg_contact={ppg_ok} left={seconds_left}s")
+
+    ticker_task = asyncio.create_task(local_ticker())
 
     try:
         while True:
+            if protocol_done[0]:
+                break
+
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed >= MAX_RUNTIME_S:
                 print(f"\n[DONE] Reached max runtime ({MAX_RUNTIME_S}s). Stopping.")
@@ -225,6 +345,8 @@ async def main():
                     # Poll connection state rather than blocking indefinitely —
                     # lets us notice a drop and move straight to reconnecting.
                     while client.is_connected:
+                        if protocol_done[0]:
+                            break
                         elapsed = asyncio.get_event_loop().time() - start_time
                         if elapsed >= MAX_RUNTIME_S:
                             break
@@ -232,6 +354,9 @@ async def main():
 
             except Exception as e:
                 print(f"[WARN] BLE connection problem: {e!r}")
+
+            if protocol_done[0]:
+                break
 
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed >= MAX_RUNTIME_S:
@@ -245,6 +370,11 @@ async def main():
     except KeyboardInterrupt:
         print("\n[STOPPED] Interrupted by user.")
     finally:
+        ticker_task.cancel()
+        try:
+            await ticker_task
+        except asyncio.CancelledError:
+            pass
         f.close()
 
     print(f"\nSaved {row_count[0]} rows (live-view only) to {out_path}")
