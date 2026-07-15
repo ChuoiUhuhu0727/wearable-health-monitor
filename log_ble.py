@@ -70,7 +70,7 @@ ACTIVITY_LABELS = ["lying", "sitting", "standing", "walking", "running"]
 
 FIELDNAMES = ["elapsed_ms", "label", "is_transition", "activity_class",
               "bpm", "mean_mag", "std_mag", "peak_rel", "peak_max",
-              "ppg_contact", "seconds_left"]
+              "ppg_contact", "bpm_fresh", "seconds_left"]
 
 
 def _make_beep_wav(freq_hz, duration_ms, sample_rate=44100):
@@ -114,11 +114,13 @@ def quality_check(local_path):
         reader = csv.DictReader(f)
         for row in reader:
             label = row["label"]
-            per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0, "ppg_bad": 0})
+            per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0, "ppg_bad": 0, "bpm_stale": 0})
             is_trans = row["is_transition"] == "1"
             bucket = per_label[label]
             if row.get("ppg_contact") == "0":
                 bucket["ppg_bad"] += 1
+            if row.get("bpm_fresh") == "0":
+                bucket["bpm_stale"] += 1
             if is_trans:
                 bucket["trans"] += 1
             else:
@@ -145,6 +147,8 @@ def quality_check(local_path):
             flags.append(f"{stats['bpm_out_of_range']} BPM readings outside {BPM_MIN}-{BPM_MAX}")
         if stats["ppg_bad"] > 0:
             flags.append(f"{stats['ppg_bad']} rows with PPG sensor contact lost")
+        if stats["bpm_stale"] > 0:
+            flags.append(f"{stats['bpm_stale']} rows with stale BPM (no beat detected recently)")
 
         status = "OK" if not flags else "NOTE: " + "; ".join(flags)
         print(f"    {label:10s} clean={stats['clean']:4d}  trans={stats['trans']:3d}  {status}")
@@ -183,6 +187,7 @@ async def main():
         "last_countdown_second": None,
         "last_ppg_warn": -999.0,
         "last_bpm_warn": -999.0,
+        "last_bpm_stale_warn": -999.0,
     }
     # Firmware doesn't send an explicit "protocol finished" signal — after the
     # last activity, task_classifier/task_ble_streamer keep running forever
@@ -285,6 +290,7 @@ async def main():
         label        = row["label"]
         seconds_left = row["seconds_left"]
         ppg_ok       = row["ppg_contact"]
+        bpm_fresh    = row["bpm_fresh"]
         now          = asyncio.get_event_loop().time()
 
         resync(label, seconds_left, now)
@@ -309,8 +315,17 @@ async def main():
         except (TypeError, ValueError):
             pass
 
+        # Stale BPM warning — a beat hasn't actually been detected recently,
+        # so the bpm value is just holding its last computed reading. Rate
+        # limited the same way; no beep (this is informational, not urgent
+        # like contact loss — the row is still safe, just not fresh).
+        if bpm_fresh == 0 and now - live["last_bpm_stale_warn"] > WARNING_COOLDOWN_S:
+            print("  [NOTE] BPM stale — no beat detected recently (value is holding, not live)")
+            live["last_bpm_stale_warn"] = now
+
         print(f"  [{row['elapsed_ms']:>8}] {label:8s} trans={row['is_transition']} "
-              f"bpm={row['bpm']:>6} std={row['std_mag']} ppg_contact={ppg_ok} left={seconds_left}s")
+              f"bpm={row['bpm']:>6} std={row['std_mag']} ppg_contact={ppg_ok} "
+              f"bpm_fresh={bpm_fresh} left={seconds_left}s")
 
     ticker_task = asyncio.create_task(local_ticker())
 

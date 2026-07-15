@@ -63,16 +63,20 @@ def check_file(path):
     per_label = {}
     with open(path, newline="") as f:
         reader = csv.DictReader(f)
-        has_ppg_contact_col = "ppg_contact" in (reader.fieldnames or [])
+        fieldnames = reader.fieldnames or []
+        has_ppg_contact_col = "ppg_contact" in fieldnames
+        has_bpm_fresh_col   = "bpm_fresh" in fieldnames
         for row in reader:
             label = row["label"]
             bucket = per_label.setdefault(label, {
                 "clean": 0, "trans": 0, "bpm_out_of_range": 0,
-                "ppg_bad": 0, "bpms": [],
+                "ppg_bad": 0, "bpm_stale": 0, "bpms": [],
             })
             is_trans = row.get("is_transition") == "1"
             if has_ppg_contact_col and row.get("ppg_contact") == "0":
                 bucket["ppg_bad"] += 1
+            if has_bpm_fresh_col and row.get("bpm_fresh") == "0":
+                bucket["bpm_stale"] += 1
             if is_trans:
                 bucket["trans"] += 1
                 continue
@@ -91,6 +95,9 @@ def check_file(path):
         file_flags.append(f"missing activities: {', '.join(missing_labels)} (truncated/aborted run)")
     if not has_ppg_contact_col:
         file_flags.append("no ppg_contact column (recorded before the 2026-07-14 validity fix)")
+    if not has_bpm_fresh_col:
+        file_flags.append("no bpm_fresh column (recorded before the adaptive-threshold fix — "
+                           "frozen-BPM stretches can't be confirmed, only guessed via row heuristics)")
 
     per_label_report = {}
     for label, stats in per_label.items():
@@ -101,9 +108,18 @@ def check_file(path):
             label_flags.append(f"{stats['bpm_out_of_range']} BPM out of {BPM_MIN}-{BPM_MAX}")
         if stats["ppg_bad"] > 0:
             label_flags.append(f"{stats['ppg_bad']} rows PPG contact lost")
-        run = longest_identical_run(stats["bpms"])
-        if run >= STALE_BPM_RUN_THRESHOLD:
-            label_flags.append(f"BPM frozen for {run} consecutive rows (motion artifact — beat detector likely stalled)")
+        if has_bpm_fresh_col:
+            # Real signal from firmware — trust it over the heuristic below.
+            if stats["bpm_stale"] > 0:
+                label_flags.append(f"{stats['bpm_stale']} rows with stale BPM (no beat detected recently)")
+        else:
+            # Older file, no bpm_fresh column — fall back to the statistical
+            # heuristic (longest run of identical BPM values) calibrated
+            # 2026-07-14 against that day's actual data distribution.
+            run = longest_identical_run(stats["bpms"])
+            if run >= STALE_BPM_RUN_THRESHOLD:
+                label_flags.append(f"BPM frozen for {run} consecutive rows (heuristic guess — "
+                                    f"no bpm_fresh column to confirm)")
         per_label_report[label] = {"clean": stats["clean"], "trans": stats["trans"], "flags": label_flags}
 
     any_label_flags = any(r["flags"] for r in per_label_report.values())

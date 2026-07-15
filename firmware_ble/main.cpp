@@ -91,6 +91,28 @@
 // ppg_contact flag written to flash/BLE, so both agree on the same threshold.
 #define PPG_CONTACT_TIMEOUT_MS 3000
 
+// Beat-detection thresholds, as a FRACTION of a rolling estimate of recent
+// peak AC amplitude, instead of fixed constants. Fixed thresholds (found
+// 2026-07-14, via check_dataset_readiness.py against real collected data)
+// caused BPM to freeze for a long time in two different situations: (1)
+// motion artifact temporarily inflating/collapsing the true AC amplitude,
+// and (2) sitting very still, where the wrist's real AC swing is smaller
+// than the old fixed 50/-15 constants could ever cross. Scaling to recent
+// amplitude adapts to both. Min/max clamps stop the threshold collapsing
+// to near-zero noise or ballooning from one big motion spike.
+#define PPG_AC_ONSET_FRAC    0.30f
+#define PPG_AC_RESET_FRAC    0.15f
+#define PPG_AC_ONSET_MIN     15.0f
+#define PPG_AC_ONSET_MAX     200.0f
+#define PPG_AC_RESET_MIN     5.0f
+#define PPG_AC_RESET_MAX     80.0f
+
+// If no beat has been ACCEPTED (not just "a wave came and went") within
+// this long, the current bpm value is stale — it's still whatever the EMA
+// last computed, not a fresh reading. Exposed as bpm_fresh so bad stretches
+// can be filtered out of the dataset instead of silently trusted.
+#define BPM_STALE_TIMEOUT_MS 4000
+
 // Queue depthspython
 #define IMU_Q_DEPTH    5
 #define PPG_Q_DEPTH    20        // PPG nhanh hơn IMU 4x nên buffer to hơn
@@ -124,6 +146,31 @@
 #define STACK_BLE    8192   // NimBLE stack cần nhiều hơn
 #define STACK_BUZZER 4096   // buzz()'s diagLog()/File::printf() calls need more than a
                              // bare-minimum stack — see firmware_main history for why
+#define STACK_RAW    8192   // holds RAW_IMU_Q_DEPTH + RAW_PPG_Q_DEPTH sample arrays (~4.2KB)
+
+// -----------------------------------------------------------------------
+// RAW WAVEFORM CAPTURE (2026-07-15) — supplementary to the feature dataset
+// above, added for the LMS/RLS/Wiener comparison research track: you can't
+// run a candidate filtering algorithm on an already-computed BPM number,
+// only on the raw signal. NOT required for activity classification or the
+// existing validity checks — session_N.csv remains the guaranteed record.
+//
+// Deliberately a SEPARATE task + SEPARATE queues from task_imu_reader/
+// task_ppg_reader (rather than writing to flash inline in those tasks) —
+// a flash write is slow enough that doing it inline would risk delaying
+// the 25Hz/100Hz sensor read cadence those tasks must keep up. This task
+// only drains queues and writes; it never touches I2C.
+//
+// Generous queue depths (~4s buffer each) so a momentary flash-write stall
+// doesn't drop samples silently — samples are only discarded if the writer
+// falls behind by more than that. RAW_FLUSH_MS is intentionally SHORT
+// (not batched into large infrequent writes) — caps how much raw data is
+// lost if the board loses power mid-run to that same short window, at the
+// cost of a few more flash writes/sec than a larger-batch design would need.
+// -----------------------------------------------------------------------
+#define RAW_IMU_Q_DEPTH 100   // ~4s at 25Hz
+#define RAW_PPG_Q_DEPTH 400   // ~4s at 100Hz
+#define RAW_FLUSH_MS    500   // how often the writer task drains+flushes
 
 // -----------------------------------------------------------------------
 // DATA STRUCTURES — chỉ dùng để truyền qua queue
@@ -136,6 +183,20 @@ struct PpgSample {
     long ir;
 };
 
+// Raw samples for the waveform-capture task — carry their own timestamp
+// since they're written to a file separate from session_N.csv; cross-
+// reference against that file's label/is_transition by elapsed_ms range
+// rather than duplicating the label string on every raw sample.
+struct RawImuSample {
+    unsigned long ms;
+    int16_t ax, ay, az;
+};
+
+struct RawPpgSample {
+    unsigned long ms;
+    long ir;
+};
+
 struct OutputResult {
     int   activity_class;  // 0 = normal, 1 = intense
     float bpm;
@@ -144,6 +205,7 @@ struct OutputResult {
     float peak_rel;
     float peak_max;
     bool  ppg_contact;     // live: good IR sample seen within PPG_CONTACT_TIMEOUT_MS?
+    bool  bpm_fresh;       // live: a beat was actually ACCEPTED within BPM_STALE_TIMEOUT_MS?
 };
 
 // -----------------------------------------------------------------------
@@ -153,6 +215,8 @@ struct OutputResult {
 static QueueHandle_t     imu_queue;
 static QueueHandle_t     ppg_queue;
 static QueueHandle_t     output_queue;
+static QueueHandle_t     raw_imu_queue;   // task_imu_reader -> task_raw_writer
+static QueueHandle_t     raw_ppg_queue;   // task_ppg_reader -> task_raw_writer
 static SemaphoreHandle_t i2c_mutex;
 static SemaphoreHandle_t buzzer_mutex;   // task_session_buzzer + classifier watchdog both call tone() on BUZZER_PIN
 static SemaphoreHandle_t diag_mutex;     // guards diagFile writes from multiple tasks — separate from buzzer_mutex
@@ -181,6 +245,8 @@ static volatile bool          protocolFinished     = false;
 
 static File sessionFile;   // open for the whole run, closed when the 5th session ends
 static File diagFile;      // open for the whole run — forensic log independent of USB/Serial
+static File rawPpgFile;    // /raw_ppg_N.csv — paired with sessionFile, see task_raw_writer
+static File rawAccelFile;  // /raw_accel_N.csv — paired with sessionFile, see task_raw_writer
 
 // BLE characteristic handle — ghi bởi setup, đọc bởi ble_streamer
 static NimBLECharacteristic* pStreamChar = nullptr;
@@ -204,12 +270,16 @@ static long     lastIR = 0;   // most recent raw IR reading, for live debug prin
 // fully untethered — retrieval happens later in one batch (see dump below).
 // This is the guaranteed record — unaffected by BLE range/dropouts.
 // -----------------------------------------------------------------------
-static String nextSessionPath() {
+// Returns the next free participant number, or -1 if all MAX_STORED_SESSIONS
+// slots are taken. Used to derive session_N.csv AND its paired raw_ppg_N.csv/
+// raw_accel_N.csv from the same N, so retrieval/dump can always find all
+// three files for a given run together.
+static int nextSessionNumber() {
     for (int n = 1; n <= MAX_STORED_SESSIONS; n++) {
         String path = "/session_" + String(n) + ".csv";
-        if (!LittleFS.exists(path)) return path;
+        if (!LittleFS.exists(path)) return n;
     }
-    return "/session_overflow.csv";   // shouldn't happen at normal batch sizes
+    return -1;   // shouldn't happen at normal batch sizes
 }
 
 // -----------------------------------------------------------------------
@@ -246,20 +316,35 @@ static void diagLog(const char* msg) {
 // Prints every stored session file (and diag.log) to Serial, then deletes
 // them. Triggered only when something is actually listening on boot (see
 // waitForDumpRequest).
+// Prints then removes 1 file if it exists — shared by dumpAndClearSessions()
+// for session_N.csv and its paired raw_ppg_N.csv/raw_accel_N.csv.
+static void dumpAndRemoveFile(const String& path, const char* label) {
+    if (!LittleFS.exists(path)) return;
+    File f = LittleFS.open(path, "r");
+    Serial.printf("----- FILE: %s -----\n", label);
+    while (f.available()) Serial.write(f.read());
+    Serial.printf("----- END: %s -----\n", label);
+    f.close();
+    LittleFS.remove(path);
+}
+
 static void dumpAndClearSessions() {
     Serial.println("\n===== SESSION DUMP START =====");
     bool any = false;
     for (int n = 1; n <= MAX_STORED_SESSIONS; n++) {
-        String path = "/session_" + String(n) + ".csv";
-        if (!LittleFS.exists(path)) continue;
+        String sessionPath = "/session_" + String(n) + ".csv";
+        if (!LittleFS.exists(sessionPath)) continue;   // session file is the "this N exists" marker
         any = true;
 
-        File f = LittleFS.open(path, "r");
-        Serial.printf("----- FILE: session_%d.csv -----\n", n);
-        while (f.available()) Serial.write(f.read());
-        Serial.printf("----- END: session_%d.csv -----\n", n);
-        f.close();
-        LittleFS.remove(path);
+        char label[32];
+        snprintf(label, sizeof(label), "session_%d.csv", n);
+        dumpAndRemoveFile(sessionPath, label);
+
+        // Raw waveform files, if this run had them (older runs won't).
+        snprintf(label, sizeof(label), "raw_ppg_%d.csv", n);
+        dumpAndRemoveFile("/raw_ppg_" + String(n) + ".csv", label);
+        snprintf(label, sizeof(label), "raw_accel_%d.csv", n);
+        dumpAndRemoveFile("/raw_accel_" + String(n) + ".csv", label);
     }
 
     if (LittleFS.exists("/diag.log")) {
@@ -390,6 +475,12 @@ static void task_session_buzzer(void* arg) {
         sessionFile.flush();
         sessionFile.close();
     }
+    // Closing these makes task_raw_writer's `if (rawAccelFile)`/`if (rawPpgFile)`
+    // checks evaluate false from here on — same safe pattern as sessionFile
+    // above, so a queued-but-not-yet-flushed batch just gets silently
+    // skipped rather than written to a closed file.
+    if (rawAccelFile) { rawAccelFile.flush(); rawAccelFile.close(); }
+    if (rawPpgFile)   { rawPpgFile.flush();   rawPpgFile.close();   }
     protocolFinished = true;
     Serial.println("[SESSION] All 5 activities complete for this participant. "
                     "Send any character any time to dump + retrieve (no reset needed), "
@@ -432,6 +523,15 @@ static void task_imu_reader(void* arg) {
                 xQueueReceive(imu_queue, &discard, 0);
                 xQueueSend(imu_queue, &sample, 0);
             }
+
+            // Raw waveform capture — only once the participant is actually
+            // in position (matches the same gate used for the feature CSV).
+            // Best-effort: if raw_imu_queue is full, drop rather than block
+            // this task's 25Hz cadence.
+            if (protocolStarted) {
+                RawImuSample rawSample = { millis(), sample.ax, sample.ay, sample.az };
+                xQueueSend(raw_imu_queue, &rawSample, 0);
+            }
         }
     }
 }
@@ -457,6 +557,68 @@ static void task_ppg_reader(void* arg) {
             PpgSample sample = { ir };
             xQueueSend(ppg_queue, &sample, 0);  // drop nếu đầy
         }
+
+        // Raw waveform capture — unconditional (not gated by the ir>3000
+        // contact threshold above), so contact-loss transitions are visible
+        // in the raw signal too. Same protocolStarted gate as the IMU side.
+        if (protocolStarted) {
+            RawPpgSample rawSample = { millis(), ir };
+            xQueueSend(raw_ppg_queue, &rawSample, 0);
+        }
+    }
+}
+
+// -----------------------------------------------------------------------
+// TASK: RAW WAVEFORM WRITER (added 2026-07-15 for the LMS/RLS/Wiener
+// research track — see the RAW_IMU_Q_DEPTH comment near the top of the
+// file for the full rationale). Drains raw_imu_queue/raw_ppg_queue and
+// appends to /raw_accel_N.csv + /raw_ppg_N.csv every RAW_FLUSH_MS.
+//
+// Deliberately its own task: the only thing this task does is queue
+// draining + flash writes, so a slow flush can never delay the 25Hz/100Hz
+// sensor reads happening in task_imu_reader/task_ppg_reader. Never touches
+// I2C, so it can't contend with i2c_mutex either.
+//
+// Rabbit-hole guard: if this task ever causes the FEATURE pipeline
+// (session_N.csv / ppg_contact / bpm_fresh — all validated working
+// 2026-07-14) to regress — missed IMU/PPG samples, task watchdog resets,
+// visibly wrong bpm/std_mag — stop and disable raw capture (comment out
+// its xTaskCreate call and the two raw_*_queue sends above) rather than
+// debugging it further under time pressure. The feature pipeline is the
+// guaranteed dataset; raw capture is supplementary and expendable.
+// -----------------------------------------------------------------------
+static void task_raw_writer(void* arg) {
+    static RawImuSample imuBuf[RAW_IMU_Q_DEPTH];
+    static RawPpgSample ppgBuf[RAW_PPG_Q_DEPTH];
+
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(RAW_FLUSH_MS));
+        if (!protocolStarted) continue;
+
+        int imuCount = 0;
+        while (imuCount < RAW_IMU_Q_DEPTH &&
+               xQueueReceive(raw_imu_queue, &imuBuf[imuCount], 0) == pdTRUE) {
+            imuCount++;
+        }
+        if (imuCount > 0 && rawAccelFile) {
+            for (int i = 0; i < imuCount; i++) {
+                rawAccelFile.printf("%lu,%d,%d,%d\n", imuBuf[i].ms,
+                                     imuBuf[i].ax, imuBuf[i].ay, imuBuf[i].az);
+            }
+            rawAccelFile.flush();
+        }
+
+        int ppgCount = 0;
+        while (ppgCount < RAW_PPG_Q_DEPTH &&
+               xQueueReceive(raw_ppg_queue, &ppgBuf[ppgCount], 0) == pdTRUE) {
+            ppgCount++;
+        }
+        if (ppgCount > 0 && rawPpgFile) {
+            for (int i = 0; i < ppgCount; i++) {
+                rawPpgFile.printf("%lu,%ld\n", ppgBuf[i].ms, ppgBuf[i].ir);
+            }
+            rawPpgFile.flush();
+        }
     }
 }
 
@@ -477,6 +639,8 @@ static void task_classifier(void* arg) {
     float         maxInWave   = 0;
     float         currentBPM  = 75.0f;
     unsigned long lastBeatMs  = 0;
+    float         acAmplitudeEstimate = 100.0f;  // rolling estimate of recent peak AC swing
+    unsigned long lastAcceptedBeatMs  = 0;       // last beat that actually updated currentBPM
 
     // --- PPG watchdog ---
     unsigned long lastPpgMs   = millis();
@@ -521,6 +685,7 @@ static void task_classifier(void* arg) {
                 result.peak_rel = peak_rel;
                 result.peak_max = peak_max;
                 result.ppg_contact = (millis() - lastPpgMs) < PPG_CONTACT_TIMEOUT_MS;
+                result.bpm_fresh   = (millis() - lastAcceptedBeatMs) < BPM_STALE_TIMEOUT_MS;
 
                 xQueueSend(output_queue, &result, 0);
 
@@ -539,18 +704,31 @@ static void task_classifier(void* arg) {
             dcOffset = dcOffset * 0.99f + ppgSample.ir * 0.01f;
             float ac = ppgSample.ir - dcOffset;
 
-            // Peak detection → BPM
-            if (ac > 50.0f) {   // wrist AC amplitude ~3–5x smaller than fingertip
+            // Peak detection → BPM. Thresholds scale with acAmplitudeEstimate
+            // (recent peak AC swing) instead of fixed constants — see
+            // PPG_AC_*_FRAC comment near the top of the file for why.
+            float onsetThreshold = constrain(acAmplitudeEstimate * PPG_AC_ONSET_FRAC,
+                                              PPG_AC_ONSET_MIN, PPG_AC_ONSET_MAX);
+            float resetThreshold = -constrain(acAmplitudeEstimate * PPG_AC_RESET_FRAC,
+                                               PPG_AC_RESET_MIN, PPG_AC_RESET_MAX);
+
+            if (ac > onsetThreshold) {
                 if (ac > maxInWave) maxInWave = ac;
-            } else if (ac < -15.0f && maxInWave > 50.0f) {
+            } else if (ac < resetThreshold && maxInWave > onsetThreshold) {
                 unsigned long now      = millis();
                 long          interval = now - lastBeatMs;
                 if (lastBeatMs > 0 && interval > 375 && interval < 1200
                     && globalAccMag < 14000.0f) {
                     float rawBPM = 60000.0f / interval;
-                    if (fabsf(rawBPM - currentBPM) < 35.0f || currentBPM == 75.0f)
+                    if (fabsf(rawBPM - currentBPM) < 35.0f || currentBPM == 75.0f) {
                         currentBPM = currentBPM * 0.6f + rawBPM * 0.4f;
+                        lastAcceptedBeatMs = now;   // only a truly accepted beat counts as "fresh"
+                    }
                 }
+                // Adapt to the wave that just completed, whether or not it was
+                // accepted as a beat — this is what lets the threshold track
+                // a genuinely weak-but-real signal at rest.
+                acAmplitudeEstimate = acAmplitudeEstimate * 0.9f + maxInWave * 0.1f;
                 lastBeatMs = now;
                 maxInWave  = 0;
             }
@@ -601,7 +779,7 @@ static void task_ble_streamer(void* arg) {
             // Always happens BEFORE the BLE notify below, so a BLE range
             // problem can never delay or skip the actual data record.
             if (sessionFile) {
-                sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f,%d\n",
+                sessionFile.printf("%lu,%s,%d,%d,%.2f,%.1f,%.1f,%.2f,%.1f,%d,%d\n",
                                     nowMs,
                                     ACTIVITY_LABELS[currentSessionIndex],
                                     (int)isTransition,
@@ -611,7 +789,8 @@ static void task_ble_streamer(void* arg) {
                                     result.std_mag,
                                     result.peak_rel,
                                     result.peak_max,
-                                    (int)result.ppg_contact);
+                                    (int)result.ppg_contact,
+                                    (int)result.bpm_fresh);
                 sessionFile.flush();
             }
 
@@ -628,16 +807,16 @@ static void task_ble_streamer(void* arg) {
                 int  secondsLeft   = (int)((SESSION_MS - msIntoSession) / 1000);
                 if (secondsLeft < 0) secondsLeft = 0;
 
-                char payload[200];
+                char payload[220];
                 snprintf(payload, sizeof(payload),
                          "{\"elapsed_ms\":%lu,\"label\":\"%s\",\"is_transition\":%d,"
                          "\"activity_class\":%d,\"bpm\":%.2f,\"mean_mag\":%.1f,"
                          "\"std_mag\":%.1f,\"peak_rel\":%.2f,\"peak_max\":%.1f,"
-                         "\"ppg_contact\":%d,\"seconds_left\":%d}",
+                         "\"ppg_contact\":%d,\"bpm_fresh\":%d,\"seconds_left\":%d}",
                          nowMs, ACTIVITY_LABELS[currentSessionIndex], (int)isTransition,
                          result.activity_class, result.bpm, result.mean_mag,
                          result.std_mag, result.peak_rel, result.peak_max,
-                         (int)result.ppg_contact, secondsLeft);
+                         (int)result.ppg_contact, (int)result.bpm_fresh, secondsLeft);
                 pStreamChar->setValue((uint8_t*)payload, strlen(payload));
                 pStreamChar->notify();
             }
@@ -791,14 +970,33 @@ void setup() {
         while (true) { delay(1000); }
     }
 
-    String sessionPath = nextSessionPath();
+    int sessionNum = nextSessionNumber();
+    String sessionPath  = (sessionNum > 0) ? "/session_" + String(sessionNum) + ".csv"
+                                            : "/session_overflow.csv";
+    String rawPpgPath   = (sessionNum > 0) ? "/raw_ppg_" + String(sessionNum) + ".csv"
+                                            : "/raw_ppg_overflow.csv";
+    String rawAccelPath = (sessionNum > 0) ? "/raw_accel_" + String(sessionNum) + ".csv"
+                                            : "/raw_accel_overflow.csv";
+
     sessionFile = LittleFS.open(sessionPath, "w");
     if (sessionFile) {
-        sessionFile.println("elapsed_ms,label,is_transition,activity_class,bpm,mean_mag,std_mag,peak_rel,peak_max,ppg_contact");
+        sessionFile.println("elapsed_ms,label,is_transition,activity_class,bpm,mean_mag,std_mag,peak_rel,peak_max,ppg_contact,bpm_fresh");
         Serial.printf("[FS] Recording this run to %s\n", sessionPath.c_str());
     } else {
         Serial.println("[FATAL] Could not open a session file — recording will not be saved to flash!");
     }
+
+    // Raw waveform files — supplementary, not the guaranteed record. A
+    // failure here only loses the raw capture, never the feature dataset
+    // above, so it's a [WARN] not a [FATAL].
+    rawPpgFile = LittleFS.open(rawPpgPath, "w");
+    if (rawPpgFile) rawPpgFile.println("elapsed_ms,ir");
+    else Serial.println("[WARN] Could not open raw PPG file — raw capture unavailable this run.");
+
+    rawAccelFile = LittleFS.open(rawAccelPath, "w");
+    if (rawAccelFile) rawAccelFile.println("elapsed_ms,ax,ay,az");
+    else Serial.println("[WARN] Could not open raw accel file — raw capture unavailable this run.");
+
     Serial.flush();
 
     // Hardware
@@ -812,32 +1010,41 @@ void setup() {
     if (!ppgOK) {
         Serial.println("[WARN] MAX30102 không tìm thấy — chạy không có PPG (BPM=0).");
     } else {
-        ppgSensor.setup(30, 1, 2, 100, 411, 4096);
+        // LED brightness bumped 30 -> 55 (2026-07-14 experiment): raises raw
+        // PPG AC amplitude at the sensor itself, complementing the adaptive
+        // threshold above for the "sitting still, signal too weak" case —
+        // that case can't be fixed by threshold tuning alone if the real
+        // signal is this close to the noise floor. A/B against 30 if BPM
+        // quality doesn't visibly improve; safe range for this library is 0-255.
+        ppgSensor.setup(55, 1, 2, 100, 411, 4096);
     }
     Serial.println("[OK]  Sensors initialized.");
     Serial.flush();
 
     // Tạo mutex + queues
-    i2c_mutex    = xSemaphoreCreateMutex();
-    buzzer_mutex = xSemaphoreCreateMutex();
-    imu_queue    = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
-    ppg_queue    = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
-    output_queue = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
+    i2c_mutex     = xSemaphoreCreateMutex();
+    buzzer_mutex  = xSemaphoreCreateMutex();
+    imu_queue     = xQueueCreate(IMU_Q_DEPTH, sizeof(ImuSample));
+    ppg_queue     = xQueueCreate(PPG_Q_DEPTH, sizeof(PpgSample));
+    output_queue  = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
+    raw_imu_queue = xQueueCreate(RAW_IMU_Q_DEPTH, sizeof(RawImuSample));
+    raw_ppg_queue = xQueueCreate(RAW_PPG_Q_DEPTH, sizeof(RawPpgSample));
     Serial.println("[OK]  Queues created.");
     Serial.flush();
 
     setupBLE();
     Serial.flush();
 
-    // Tạo 5 tasks
+    // Tạo 6 tasks
     //                         name           stack       arg  prio  handle
     xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU,    nullptr, 3, nullptr);
     xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG,    nullptr, 3, nullptr);
     xTaskCreate(task_classifier,    "classifier",    STACK_CLF,    nullptr, 2, nullptr);
     xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE,    nullptr, 1, nullptr);
     xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER, nullptr, 1, nullptr);
+    xTaskCreate(task_raw_writer,    "raw_writer",    STACK_RAW,    nullptr, 1, nullptr);
 
-    Serial.println("[OK]  5 FreeRTOS tasks created.");
+    Serial.println("[OK]  6 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",
                    ESP.getFreeHeap() / 1024.0f);
     Serial.flush();

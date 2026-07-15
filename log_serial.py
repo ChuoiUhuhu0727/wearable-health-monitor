@@ -45,11 +45,13 @@ def quality_check(local_path):
         reader = csvmod.DictReader(f)
         for row in reader:
             label = row["label"]
-            per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0, "ppg_bad": 0})
+            per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0, "ppg_bad": 0, "bpm_stale": 0})
             is_trans = row["is_transition"] == "1"
             bucket = per_label[label]
             if row.get("ppg_contact") == "0":
                 bucket["ppg_bad"] += 1
+            if row.get("bpm_fresh") == "0":
+                bucket["bpm_stale"] += 1
             if is_trans:
                 bucket["trans"] += 1
             else:
@@ -74,6 +76,8 @@ def quality_check(local_path):
             flags.append(f"{stats['bpm_out_of_range']} BPM readings outside {BPM_MIN}-{BPM_MAX}")
         if stats["ppg_bad"] > 0:
             flags.append(f"{stats['ppg_bad']} rows with PPG contact lost")
+        if stats["bpm_stale"] > 0:
+            flags.append(f"{stats['bpm_stale']} rows with stale BPM (no beat detected recently)")
 
         status = "OK" if not flags else "FLAG: " + "; ".join(flags)
         print(f"    {label:10s} clean={stats['clean']:4d}  trans={stats['trans']:3d}  {status}")
