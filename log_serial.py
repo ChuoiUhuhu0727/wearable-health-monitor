@@ -45,9 +45,13 @@ def quality_check(local_path):
         reader = csvmod.DictReader(f)
         for row in reader:
             label = row["label"]
-            per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0})
+            per_label.setdefault(label, {"clean": 0, "trans": 0, "bpm_out_of_range": 0, "ppg_bad": 0, "bpm_stale": 0})
             is_trans = row["is_transition"] == "1"
             bucket = per_label[label]
+            if row.get("ppg_contact") == "0":
+                bucket["ppg_bad"] += 1
+            if row.get("bpm_fresh") == "0":
+                bucket["bpm_stale"] += 1
             if is_trans:
                 bucket["trans"] += 1
             else:
@@ -70,6 +74,10 @@ def quality_check(local_path):
             flags.append(f"only {stats['clean']} clean rows (expected ~187)")
         if stats["bpm_out_of_range"] > 0:
             flags.append(f"{stats['bpm_out_of_range']} BPM readings outside {BPM_MIN}-{BPM_MAX}")
+        if stats["ppg_bad"] > 0:
+            flags.append(f"{stats['ppg_bad']} rows with PPG contact lost")
+        if stats["bpm_stale"] > 0:
+            flags.append(f"{stats['bpm_stale']} rows with stale BPM (no beat detected recently)")
 
         status = "OK" if not flags else "FLAG: " + "; ".join(flags)
         print(f"    {label:10s} clean={stats['clean']:4d}  trans={stats['trans']:3d}  {status}")
@@ -93,7 +101,15 @@ def main():
             time.sleep(0.5)
     print(f"Opened {port} at {BAUD} baud.")
 
-    print(f"Listening — reset the ESP32 if it hasn't booted yet (retrying send for up to {RETRY_SECONDS}s)...")
+    # No reset needed at all anymore (firmware now accepts a dump request
+    # any time after this run's 5 activities finish, not just in the 3s
+    # boot window — see checkSerialDumpRequest() in main.cpp). If the board
+    # already finished its protocol, the very next "\n" below gets caught
+    # immediately. If it's mid-recording (or hasn't booted this session
+    # yet), the pokes are harmless — either ignored (mid-recording, firmware
+    # replies "[BUSY]") or caught at boot like before.
+    print(f"Listening (retrying send for up to {RETRY_SECONDS}s per cycle)... "
+          f"works with no reset if the board already finished its 5 activities.")
 
     current_file    = None
     current_path    = None
@@ -109,7 +125,9 @@ def main():
         line_bytes = ser.readline()
         if not line_bytes:
             if not dump_started and time.time() >= deadline:
-                print("[TIMEOUT] No dump window caught. Reset the board again — script is still listening.")
+                print("[TIMEOUT] Still no response after retrying — still listening. If the board "
+                      "hasn't finished its 5 activities yet, that's expected (it replies [BUSY]); "
+                      "otherwise check it's actually powered on / connected.")
                 deadline = time.time() + RETRY_SECONDS
             continue
 
@@ -117,19 +135,13 @@ def main():
         if not line:
             continue
 
-        print(f"  {line}")
-
         if "SESSION DUMP START" in line:
             dump_started = True
+            print(f"  {line}")
             continue
 
         if "SESSION DUMP END" in line:
             print(f"\nDone. Retrieved {len(saved_paths)} file(s).\n")
-            for p in saved_paths:
-                if os.path.basename(p).startswith("session_"):
-                    quality_check(p)
-                else:
-                    print(f"  (skipping quality check for {os.path.basename(p)} — not a session file)")
             break
 
         m = FILE_START_RE.search(line)
@@ -146,12 +158,24 @@ def main():
             if current_file:
                 current_file.close()
                 saved_paths.append(current_path)
+                # Immediate feedback per file, instead of waiting for the whole
+                # dump to finish — this is the "was it saved OK + how many
+                # clean rows" summary, without echoing every raw data row above.
+                if os.path.basename(current_path).startswith("session_"):
+                    quality_check(current_path)
+                else:
+                    print(f"  (skipping quality check for {os.path.basename(current_path)} — not a session file)")
             current_file = None
             current_path = None
             continue
 
         if current_file:
+            # Data row — write silently, don't echo (this is what was making
+            # the terminal feel slow: printing every single CSV row).
             current_file.write(line + "\n")
+            continue
+
+        print(f"  {line}")
 
     ser.close()
 

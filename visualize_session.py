@@ -6,8 +6,10 @@ it for training.
 Works on either kind of CSV this project produces:
   - session_*.csv   (from log_serial.py — the real flash-backed dataset)
   - ble_live_*.csv  (from log_ble.py — live-view only, may have gaps)
-Both share the same core columns; ble_live_*.csv has two extra ones
-(ppgOK, seconds_left) which are used here if present but not required.
+Both now carry ppg_contact (live PPG contact status per row) and bpm_fresh
+(whether a beat was actually detected recently, vs. bpm just holding its
+last value); ble_live_*.csv has one extra column beyond that (seconds_left),
+used here if present but not required.
 
 Usage:
     pip install matplotlib
@@ -58,8 +60,10 @@ def read_rows(path):
                 }
             except (KeyError, ValueError):
                 continue  # skip malformed/partial rows (e.g. a mid-write BLE packet)
-            ppg = r.get("ppgOK")
+            ppg = r.get("ppg_contact")
             row["ppg_ok"] = None if ppg in (None, "") else (ppg == "1")
+            fresh = r.get("bpm_fresh")
+            row["bpm_fresh"] = None if fresh in (None, "") else (fresh == "1")
             rows.append(row)
     return rows
 
@@ -116,6 +120,16 @@ def plot_session(path):
     if ppg_bad_points:
         bad_t, bad_bpm = zip(*ppg_bad_points)
         axes[0].scatter(bad_t, bad_bpm, color="red", s=8, zorder=5, label="PPG contact lost")
+
+    # Mark rows where bpm_fresh says no beat was actually detected recently —
+    # different from contact loss: sensor contact can be fine while the beat
+    # detector still hasn't found a new peak (see CHANGELOG 2026-07-14).
+    stale_points = [(r["t_s"], r["bpm"]) for r in rows if r["bpm_fresh"] is False]
+    if stale_points:
+        stale_t, stale_bpm = zip(*stale_points)
+        axes[0].scatter(stale_t, stale_bpm, color="orange", s=8, zorder=4, label="BPM stale")
+
+    if ppg_bad_points or stale_points:
         axes[0].legend(loc="upper right", fontsize=8)
 
     axes[-1].set_xlabel("elapsed time (s)")
@@ -137,7 +151,9 @@ def plot_session(path):
 
     n_bpm_bad = sum(1 for b in bpm if not (40 <= b <= 180))
     n_ppg_bad = sum(1 for r in rows if r["ppg_ok"] is False)
-    print(f"Rows: {len(rows)}  |  BPM out of 40-180 range: {n_bpm_bad}  |  PPG contact lost: {n_ppg_bad}")
+    n_bpm_stale = sum(1 for r in rows if r["bpm_fresh"] is False)
+    print(f"Rows: {len(rows)}  |  BPM out of 40-180 range: {n_bpm_bad}  |  "
+          f"PPG contact lost: {n_ppg_bad}  |  BPM stale: {n_bpm_stale}")
 
     plt.show()
 
