@@ -18,6 +18,16 @@ cần chạy thuật toán lên chính raw signal. Thêm `task_raw_writer` (task
 `nextSessionPath()` đổi thành `nextSessionNumber()` để 3 file cùng participant dùng chung số
 N. `log_serial.py` KHÔNG cần sửa — logic dump vốn tổng quát theo marker `----- FILE: X -----`.
 
+## 2026-07-16 — Thêm MAX30102 thứ 2 (fingertip, ground-truth channel)
+Cảm biến MAX30102 có địa chỉ I2C cố định (0x57, không có chân ADDR) nên không thể dùng
+chung bus với con hiện tại (dorsal wrist) — con mới đi trên bus I2C riêng (`Wire1`, SDA=GPIO3/D2,
+SCL=GPIO2/D1), task riêng `task_ppg2_reader` (task 7), không cần `i2c_mutex` vì không đụng bus
+với ai. `BUZZER_PIN` dời từ D2(GPIO3) sang D3(GPIO4) để nhường chỗ. Chỉ ghi raw capture vào `/raw_ppg2_N.csv` (cùng schema `raw_ppg_N.csv`) — KHÔNG đưa
+vào `ppg_queue`/BPM/`session_N.csv`, vì vai trò của nó là ground-truth tham chiếu cho so sánh
+LMS/RLS/Wiener (`experiments/fingertip/`), không phải BPM sống thứ 2. `log_serial.py` không
+cần sửa (marker-based). `STACK_RAW` tăng 8192→12288 vì 3 buffer raw giờ ~7.6KB, margin cũ
+không đủ an toàn.
+
 **Checklist rabbit-hole — dừng lại và tắt raw capture nếu:**
 - Build lỗi > ~15 phút chưa fix được
 - Pipeline feature đã validate hôm 07-14 (`bpm`/`std_mag`/`ppg_contact`/`bpm_fresh`) chạy

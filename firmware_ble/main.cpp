@@ -82,6 +82,13 @@
 #define IMU_ADDR       0x68
 #define IMU_HZ         25
 #define PPG_HZ         100
+
+// Second MAX30102 (fingertip, ground-truth channel for the LMS/RLS/Wiener
+// research track — added 2026-07-16). MAX30102 has a FIXED I2C address
+// (0x57, no ADDR pin), so it cannot share the wrist sensor's bus — it gets
+// its own bus on Wire1, separate pins, no contention with i2c_mutex at all.
+#define PPG2_SDA_PIN   3   // D2
+#define PPG2_SCL_PIN   2   // D1
 #define WINDOW_SIZE    60
 #define STRIDE_SIZE    10
 #define ACTIVITY_GATE  150.0f    // bỏ qua window yên tĩnh (rest≈7, walk≈200–800)
@@ -119,7 +126,7 @@
 #define OUT_Q_DEPTH    3
 
 // Buzzer + session timer
-#define BUZZER_PIN       3          // D2 on XIAO ESP32-S3
+#define BUZZER_PIN       4          // D3 on XIAO ESP32-S3 — moved off D2 (GPIO3) to make room for PPG2_SCL_PIN
 #define SESSION_MS       90000      // 90 seconds per activity (15s transition + 75s clean)
 #define TRANSITION_MS    15000      // first 15s of each session — body settling, not clean data
 #define PREP_MS          30000      // silent window before activity 1 — time to get into position
@@ -146,7 +153,11 @@
 #define STACK_BLE    8192   // NimBLE stack cần nhiều hơn
 #define STACK_BUZZER 4096   // buzz()'s diagLog()/File::printf() calls need more than a
                              // bare-minimum stack — see firmware_main history for why
-#define STACK_RAW    8192   // holds RAW_IMU_Q_DEPTH + RAW_PPG_Q_DEPTH sample arrays (~4.2KB)
+// Was 8192 (~4.2KB of arrays, ~4KB margin) before RAW_PPG2 was added. The
+// three static buffers now total ~7.6KB (100*12 + 400*8 + 400*8), which
+// would leave only ~600B of margin at 8192 — bumped to keep a safe margin.
+#define STACK_RAW    12288  // holds RAW_IMU_Q_DEPTH + RAW_PPG_Q_DEPTH + RAW_PPG2_Q_DEPTH sample arrays
+#define STACK_PPG2   4096   // task_ppg2_reader — mirrors STACK_PPG
 
 // -----------------------------------------------------------------------
 // RAW WAVEFORM CAPTURE (2026-07-15) — supplementary to the feature dataset
@@ -170,6 +181,7 @@
 // -----------------------------------------------------------------------
 #define RAW_IMU_Q_DEPTH 100   // ~4s at 25Hz
 #define RAW_PPG_Q_DEPTH 400   // ~4s at 100Hz
+#define RAW_PPG2_Q_DEPTH 400  // fingertip channel, same depth/rate as wrist PPG
 #define RAW_FLUSH_MS    500   // how often the writer task drains+flushes
 
 // -----------------------------------------------------------------------
@@ -217,6 +229,7 @@ static QueueHandle_t     ppg_queue;
 static QueueHandle_t     output_queue;
 static QueueHandle_t     raw_imu_queue;   // task_imu_reader -> task_raw_writer
 static QueueHandle_t     raw_ppg_queue;   // task_ppg_reader -> task_raw_writer
+static QueueHandle_t     raw_ppg2_queue;  // task_ppg2_reader (fingertip) -> task_raw_writer
 static SemaphoreHandle_t i2c_mutex;
 static SemaphoreHandle_t buzzer_mutex;   // task_session_buzzer + classifier watchdog both call tone() on BUZZER_PIN
 static SemaphoreHandle_t diag_mutex;     // guards diagFile writes from multiple tasks — separate from buzzer_mutex
@@ -247,6 +260,7 @@ static File sessionFile;   // open for the whole run, closed when the 5th sessio
 static File diagFile;      // open for the whole run — forensic log independent of USB/Serial
 static File rawPpgFile;    // /raw_ppg_N.csv — paired with sessionFile, see task_raw_writer
 static File rawAccelFile;  // /raw_accel_N.csv — paired with sessionFile, see task_raw_writer
+static File rawPpg2File;   // /raw_ppg2_N.csv — fingertip ground-truth channel, same pairing
 
 // BLE characteristic handle — ghi bởi setup, đọc bởi ble_streamer
 static NimBLECharacteristic* pStreamChar = nullptr;
@@ -262,6 +276,12 @@ static void bleAdvertisingWatchdog();
 static MAX30105 ppgSensor;
 static bool     ppgOK = false;
 static long     lastIR = 0;   // most recent raw IR reading, for live debug print
+
+// Second sensor — fingertip, on its own I2C bus (Wire1). Read only by
+// task_ppg2_reader, so unlike ppgSensor it never needs i2c_mutex.
+static MAX30105 ppgSensor2;
+static bool     ppgOK2 = false;
+static long     lastIR2 = 0;
 
 // -----------------------------------------------------------------------
 // ONBOARD FLASH LOGGING (LittleFS)
@@ -345,6 +365,8 @@ static void dumpAndClearSessions() {
         dumpAndRemoveFile("/raw_ppg_" + String(n) + ".csv", label);
         snprintf(label, sizeof(label), "raw_accel_%d.csv", n);
         dumpAndRemoveFile("/raw_accel_" + String(n) + ".csv", label);
+        snprintf(label, sizeof(label), "raw_ppg2_%d.csv", n);
+        dumpAndRemoveFile("/raw_ppg2_" + String(n) + ".csv", label);
     }
 
     if (LittleFS.exists("/diag.log")) {
@@ -481,6 +503,7 @@ static void task_session_buzzer(void* arg) {
     // skipped rather than written to a closed file.
     if (rawAccelFile) { rawAccelFile.flush(); rawAccelFile.close(); }
     if (rawPpgFile)   { rawPpgFile.flush();   rawPpgFile.close();   }
+    if (rawPpg2File)  { rawPpg2File.flush();  rawPpg2File.close();  }
     protocolFinished = true;
     Serial.println("[SESSION] All 5 activities complete for this participant. "
                     "Send any character any time to dump + retrieve (no reset needed), "
@@ -569,6 +592,35 @@ static void task_ppg_reader(void* arg) {
 }
 
 // -----------------------------------------------------------------------
+// TASK: PPG2 READER (fingertip, added 2026-07-16)
+// Reads IR from the second MAX30102 over its own bus (Wire1) at 100 Hz —
+// raw capture ONLY, same millis() clock as raw_ppg_queue so the two
+// channels line up sample-for-sample later in analysis. Deliberately does
+// NOT feed ppg_queue/BPM detection or session_N.csv: this sensor's whole
+// job is being the ground-truth reference for the LMS filter comparison
+// (see experiments/fingertip/ in FIRMWARE_OVERVIEW.md), not a second live
+// BPM to fuse into the existing feature pipeline. No i2c_mutex needed —
+// Wire1 is touched by no other task.
+// -----------------------------------------------------------------------
+static void task_ppg2_reader(void* arg) {
+    TickType_t       xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xPeriod       = pdMS_TO_TICKS(1000 / PPG_HZ);  // 10 ms
+
+    while (true) {
+        vTaskDelayUntil(&xLastWakeTime, xPeriod);
+
+        if (!ppgOK2) { vTaskDelay(pdMS_TO_TICKS(10)); continue; }
+        long ir = ppgSensor2.getIR();
+        lastIR2 = ir;
+
+        if (protocolStarted) {
+            RawPpgSample rawSample = { millis(), ir };
+            xQueueSend(raw_ppg2_queue, &rawSample, 0);
+        }
+    }
+}
+
+// -----------------------------------------------------------------------
 // TASK: RAW WAVEFORM WRITER (added 2026-07-15 for the LMS/RLS/Wiener
 // research track — see the RAW_IMU_Q_DEPTH comment near the top of the
 // file for the full rationale). Drains raw_imu_queue/raw_ppg_queue and
@@ -590,6 +642,7 @@ static void task_ppg_reader(void* arg) {
 static void task_raw_writer(void* arg) {
     static RawImuSample imuBuf[RAW_IMU_Q_DEPTH];
     static RawPpgSample ppgBuf[RAW_PPG_Q_DEPTH];
+    static RawPpgSample ppg2Buf[RAW_PPG2_Q_DEPTH];
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(RAW_FLUSH_MS));
@@ -618,6 +671,18 @@ static void task_raw_writer(void* arg) {
                 rawPpgFile.printf("%lu,%ld\n", ppgBuf[i].ms, ppgBuf[i].ir);
             }
             rawPpgFile.flush();
+        }
+
+        int ppg2Count = 0;
+        while (ppg2Count < RAW_PPG2_Q_DEPTH &&
+               xQueueReceive(raw_ppg2_queue, &ppg2Buf[ppg2Count], 0) == pdTRUE) {
+            ppg2Count++;
+        }
+        if (ppg2Count > 0 && rawPpg2File) {
+            for (int i = 0; i < ppg2Count; i++) {
+                rawPpg2File.printf("%lu,%ld\n", ppg2Buf[i].ms, ppg2Buf[i].ir);
+            }
+            rawPpg2File.flush();
         }
     }
 }
@@ -977,6 +1042,8 @@ void setup() {
                                             : "/raw_ppg_overflow.csv";
     String rawAccelPath = (sessionNum > 0) ? "/raw_accel_" + String(sessionNum) + ".csv"
                                             : "/raw_accel_overflow.csv";
+    String rawPpg2Path  = (sessionNum > 0) ? "/raw_ppg2_" + String(sessionNum) + ".csv"
+                                            : "/raw_ppg2_overflow.csv";
 
     sessionFile = LittleFS.open(sessionPath, "w");
     if (sessionFile) {
@@ -996,6 +1063,10 @@ void setup() {
     rawAccelFile = LittleFS.open(rawAccelPath, "w");
     if (rawAccelFile) rawAccelFile.println("elapsed_ms,ax,ay,az");
     else Serial.println("[WARN] Could not open raw accel file — raw capture unavailable this run.");
+
+    rawPpg2File = LittleFS.open(rawPpg2Path, "w");
+    if (rawPpg2File) rawPpg2File.println("elapsed_ms,ir");
+    else Serial.println("[WARN] Could not open raw fingertip PPG file — ground-truth capture unavailable this run.");
 
     Serial.flush();
 
@@ -1018,6 +1089,20 @@ void setup() {
         // quality doesn't visibly improve; safe range for this library is 0-255.
         ppgSensor.setup(55, 1, 2, 100, 411, 4096);
     }
+
+    // Second sensor — fingertip, own bus (Wire1), own pins (see PPG2_SDA_PIN/
+    // PPG2_SCL_PIN). Fingertip signal is naturally much stronger than wrist,
+    // so brightness may need to come DOWN from 55 if this saturates — check
+    // raw_ppg2_N.csv after the first real run before assuming this value is fine.
+    Wire1.begin(PPG2_SDA_PIN, PPG2_SCL_PIN);
+    Wire1.setClock(100000);
+    ppgOK2 = ppgSensor2.begin(Wire1, I2C_SPEED_STANDARD);
+    if (!ppgOK2) {
+        Serial.println("[WARN] Fingertip MAX30102 (Wire1) không tìm thấy — chạy không có ground-truth channel.");
+    } else {
+        ppgSensor2.setup(55, 1, 2, 100, 411, 4096);
+    }
+
     Serial.println("[OK]  Sensors initialized.");
     Serial.flush();
 
@@ -1029,6 +1114,7 @@ void setup() {
     output_queue  = xQueueCreate(OUT_Q_DEPTH,  sizeof(OutputResult));
     raw_imu_queue = xQueueCreate(RAW_IMU_Q_DEPTH, sizeof(RawImuSample));
     raw_ppg_queue = xQueueCreate(RAW_PPG_Q_DEPTH, sizeof(RawPpgSample));
+    raw_ppg2_queue = xQueueCreate(RAW_PPG2_Q_DEPTH, sizeof(RawPpgSample));
     Serial.println("[OK]  Queues created.");
     Serial.flush();
 
@@ -1039,12 +1125,13 @@ void setup() {
     //                         name           stack       arg  prio  handle
     xTaskCreate(task_imu_reader,    "imu_reader",    STACK_IMU,    nullptr, 3, nullptr);
     xTaskCreate(task_ppg_reader,    "ppg_reader",    STACK_PPG,    nullptr, 3, nullptr);
+    xTaskCreate(task_ppg2_reader,   "ppg2_reader",   STACK_PPG2,   nullptr, 3, nullptr);
     xTaskCreate(task_classifier,    "classifier",    STACK_CLF,    nullptr, 2, nullptr);
     xTaskCreate(task_ble_streamer,  "ble_streamer",  STACK_BLE,    nullptr, 1, nullptr);
     xTaskCreate(task_session_buzzer,"session_buzzer",STACK_BUZZER, nullptr, 1, nullptr);
     xTaskCreate(task_raw_writer,    "raw_writer",    STACK_RAW,    nullptr, 1, nullptr);
 
-    Serial.println("[OK]  6 FreeRTOS tasks created.");
+    Serial.println("[OK]  7 FreeRTOS tasks created.");
     Serial.printf( "[RAM] Free heap after init: %.1f KB\n\n",
                    ESP.getFreeHeap() / 1024.0f);
     Serial.flush();
