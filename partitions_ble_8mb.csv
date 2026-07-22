@@ -1,0 +1,15 @@
+# Custom partition table for firmware_ble on XIAO ESP32-S3 (8MB flash).
+# Default PlatformIO scheme sized LittleFS as if the chip were 4MB (1.5MB
+# spiffs partition) — measured on-device via LittleFS.totalBytes() on
+# 2026-07-17 and confirmed. Raw waveform capture (100Hz x2 PPG + 25Hz accel,
+# added 2026-07-15/16) needs ~1.6MB per full 5-activity participant run,
+# so 1.5MB couldn't even hold one. No OTA needed (flashed over USB each
+# time), so this drops the second app slot entirely and gives that space
+# to the "spiffs" partition (mounted by LittleFS.begin() — Arduino-ESP32
+# looks for the spiffs-subtype partition regardless of filesystem format).
+#
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   0x5000
+otadata,  data, ota,     0xe000,   0x2000
+app0,     app,  ota_0,   0x10000,  0x300000
+spiffs,   data, spiffs,  0x310000, 0x4F0000
