@@ -1,0 +1,15 @@
+160469,BOOT reset_reason=OTHER heap=321544
+163614,BLE: initial advertising start OK
+51596,BOOT reset_reason=OTHER heap=321544
+22429,BOOT reset_reason=OTHER heap=321544
+25703,BLE: initial advertising start OK
+51220,BLE: client connected
+117875,BLE: client disconnected, restarting advertising
+118128,BLE: advertising restarted OK
+141749,BLE: client connected
+195102,BLE: client disconnected, restarting advertising
+195401,BLE: advertising restarted OK
+268179,BLE: client connected
+352945,BLE: client disconnected, restarting advertising
+353187,BLE: advertising restarted OK
+170568,BOOT reset_reason=BROWNOUT (power dipped below threshold) heap=

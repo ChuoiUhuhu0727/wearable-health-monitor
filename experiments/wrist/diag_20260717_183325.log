@@ -1,0 +1,13 @@
+43150,BOOT reset_reason=POWERON heap=321544
+15218,BOOT reset_reason=OTHER heap=321544
+18381,BLE: initial advertising start OK
+31424,BLE: client connected
+506346,BLE: client disconnected, restarting advertising
+506555,BLE: advertising restarted OK
+524114,watchdog: PPG lost contact, firing warning beep
+527296,watchdog: PPG lost contact, firing warning beep
+530316,watchdog: PPG lost contact, firing warning beep
+533357,watchdog: PPG lost contact, firing warning beep
+541691,watchdog: PPG lost contact, firing warning beep
+544751,watchdog: PPG lost contact, firing warning beep
+547832,watchdog: PPG lost contact, firing warning beep

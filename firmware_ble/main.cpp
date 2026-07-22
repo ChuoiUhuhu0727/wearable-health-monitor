@@ -114,6 +114,19 @@
 #define PPG_AC_RESET_MIN     5.0f
 #define PPG_AC_RESET_MAX     80.0f
 
+// acAmplitudeEstimate only updates INSIDE a completed wave, which itself
+// requires crossing the CURRENT threshold first — a lockout, not just a slow
+// adapt: if one motion spike (or an overly-optimistic startup seed) pushes
+// the threshold above the real resting AC swing, no wave can ever complete
+// again to bring the estimate back down. Found 2026-07-17 via bench test —
+// BPM froze bit-for-bit for 60+ seconds despite stable good contact. This
+// decays the estimate toward the floor after a stretch with no completed
+// wave, so a genuinely smaller real signal gets another chance instead of
+// staying locked out. Never fires during normal detection (waves complete
+// every ~800-1200ms at a real heart rate, well under this timeout).
+#define PPG_AC_STALE_MS          2000
+#define PPG_AC_DECAY_PER_SAMPLE  0.999f   // ~18%/2s pull toward PPG_AC_ONSET_MIN while stale
+
 // If no beat has been ACCEPTED (not just "a wave came and went") within
 // this long, the current bpm value is stale — it's still whatever the EMA
 // last computed, not a fresh reading. Exposed as bpm_fresh so bad stretches
@@ -769,6 +782,16 @@ static void task_classifier(void* arg) {
             dcOffset = dcOffset * 0.99f + ppgSample.ir * 0.01f;
             float ac = ppgSample.ir - dcOffset;
 
+            // Recover from a stale/locked threshold — see PPG_AC_STALE_MS
+            // comment near the top of the file. lastBeatMs marks the last
+            // COMPLETED wave (any wave, not just an accepted beat), so this
+            // only kicks in when nothing has crossed the current threshold
+            // in a while, never during normal detection.
+            if (millis() - lastBeatMs > PPG_AC_STALE_MS) {
+                acAmplitudeEstimate = fmaxf(acAmplitudeEstimate * PPG_AC_DECAY_PER_SAMPLE,
+                                             PPG_AC_ONSET_MIN);
+            }
+
             // Peak detection → BPM. Thresholds scale with acAmplitudeEstimate
             // (recent peak AC swing) instead of fixed constants — see
             // PPG_AC_*_FRAC comment near the top of the file for why.
@@ -1010,6 +1033,15 @@ void setup() {
     if (!LittleFS.begin(true)) {
         Serial.println("[FATAL] LittleFS mount failed — flash logging unavailable.");
         Serial.flush();
+    } else {
+        // Measured, not assumed — platformio.ini doesn't pin a partition
+        // scheme, and raw waveform capture (added 2026-07-15/16) made the
+        // per-participant flash footprint far bigger than the old
+        // feature-only session_N.csv. Need the real quota to know how many
+        // participants fit before MAX_STORED_SESSIONS forces a dump.
+        Serial.printf("[FS] LittleFS: %u / %u bytes used (%.1f%% free)\n",
+                      (unsigned)LittleFS.usedBytes(), (unsigned)LittleFS.totalBytes(),
+                      100.0f * (1.0f - (float)LittleFS.usedBytes() / (float)LittleFS.totalBytes()));
     }
 
     // diag_mutex + diagFile must exist before anything can call diagLog() —

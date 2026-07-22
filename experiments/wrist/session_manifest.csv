@@ -1,0 +1,22 @@
+session_file,status,date,reason
+session_1_20260707_095437.csv,valid,2026-07-07,passes running/lying std_mag ratio check
+session_1_20260707_121526.csv,valid,2026-07-07,passes running/lying std_mag ratio check
+session_1_20260710_134540.csv,firmware_test_fixture,2026-07-10,running std_mag/lying std_mag ratio 0.80 (<3) - flagged, not visually confirmed
+session_2_20260710_142941.csv,valid,2026-07-10,passes running/lying std_mag ratio check
+session_1_20260714_185527.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_1_20260714_192733.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_1_20260714_201843.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_1_20260714_212411.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_2_20260714_170105.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_2_20260714_185529.csv,firmware_test_fixture,2026-07-14,running std_mag/lying std_mag ratio 2.67 (<3) - flagged, not visually confirmed
+session_2_20260714_195838.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_3_20260714_170107.csv,firmware_test_fixture,2026-07-14,running std_mag/lying std_mag ratio 1.00 (<3) - flagged, not visually confirmed
+session_3_20260714_185531.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_5_20260714_170110.csv,firmware_test_fixture,2026-07-14,running std_mag/lying std_mag ratio 1.09 (<3) - flagged, not visually confirmed
+session_7_20260714_170112.csv,valid,2026-07-14,passes running/lying std_mag ratio check
+session_1_20260717_183249.csv,valid,2026-07-17,passes running/lying std_mag ratio check; has raw_accel/raw_ppg; raw_ppg2 (fingertip) is empty (0 rows) - no ground-truth channel for this session
+session_3_20260717_163426.csv,firmware_test_fixture,2026-07-17,visually confirmed: accel flat through supposed sitting/standing chaos then flat walking/running - no real activity signal; running std_mag/lying std_mag ratio 0.98
+session_4_20260717_163545.csv,firmware_test_fixture,2026-07-17,visually confirmed: accel flat across all 5 labels except one bump at ~458s coincident with a PPG saturation spike (>200000 counts) - device idle on a surface, not worn/moving; running std_mag/lying std_mag ratio 0.76
+session_1_20260718_203817.csv,valid,2026-07-18,passes running/lying std_mag ratio check; has raw_accel/raw_ppg/raw_ppg2
+session_1_20260718_210037.csv,valid,2026-07-18,passes running/lying std_mag ratio check; has raw_accel/raw_ppg/raw_ppg2
+session_1_20260720_184050.csv,valid,2026-07-20,passes running/lying std_mag ratio check; has raw_accel/raw_ppg/raw_ppg2

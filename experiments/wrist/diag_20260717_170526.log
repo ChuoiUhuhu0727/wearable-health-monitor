@@ -1,0 +1,35 @@
+23457,BOOT reset_reason=OTHER heap=321332
+26584,BLE: initial advertising start OK
+29649,watchdog: PPG lost contact, firing warning beep
+32714,watchdog: PPG lost contact, firing warning beep
+35780,watchdog: PPG lost contact, firing warning beep
+38845,watchdog: PPG lost contact, firing warning beep
+41911,watchdog: PPG lost contact, firing warning beep
+44976,watchdog: PPG lost contact, firing warning beep
+48041,watchdog: PPG lost contact, firing warning beep
+51305,watchdog: PPG lost contact, firing warning beep
+54411,watchdog: PPG lost contact, firing warning beep
+57511,watchdog: PPG lost contact, firing warning beep
+60590,watchdog: PPG lost contact, firing warning beep
+63661,watchdog: PPG lost contact, firing warning beep
+66703,watchdog: PPG lost contact, firing warning beep
+69765,watchdog: PPG lost contact, firing warning beep
+72858,watchdog: PPG lost contact, firing warning beep
+75956,watchdog: PPG lost contact, firing warning beep
+79048,watchdog: PPG lost contact, firing warning beep
+82116,watchdog: PPG lost contact, firing warning beep
+15721,BOOT reset_reason=OTHER heap=321544
+18892,BLE: initial advertising start OK
+21977,watchdog: PPG lost contact, firing warning beep
+25064,watchdog: PPG lost contact, firing warning beep
+28152,watchdog: PPG lost contact, firing warning beep
+31242,watchdog: PPG lost contact, firing warning beep
+34329,watchdog: PPG lost contact, firing warning beep
+37419,watchdog: PPG lost contact, firing warning beep
+50467,BOOT reset_reason=POWERON heap=321544
+53697,BLE: initial advertising start OK
+69206,watchdog: PPG lost contact, firing warning beep
+42529,BOOT reset_reason=OTHER heap=321544
+18978,BOOT reset_reason=OTHER heap=321544
+22199,BLE: initial advertising start OK
+24353,BOOT reset_reason=OTHER heap=321544
