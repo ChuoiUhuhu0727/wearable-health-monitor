@@ -1,0 +1,21 @@
+388162,BOOT reset_reason=POWERON heap=321544
+113065,BOOT reset_reason=OTHER heap=321544
+116333,BLE: initial advertising start OK
+145824,BLE: client connected
+218625,BLE: client disconnected, restarting advertising
+218841,BLE: advertising restarted OK
+285454,BLE: client connected
+311030,BLE: client disconnected, restarting advertising
+311240,BLE: advertising restarted OK
+313308,BLE: client connected
+327760,BLE: client disconnected, restarting advertising
+328117,BLE: advertising restarted OK
+333743,BLE: client connected
+343700,BLE: client disconnected, restarting advertising
+343945,BLE: advertising restarted OK
+344075,BLE: client connected
+353992,BLE: client disconnected, restarting advertising
+354432,BLE: advertising restarted OK
+354476,BLE: client connected
+614802,BLE: client disconnected, restarting advertising
+615052,BLE: advertising restarted OK

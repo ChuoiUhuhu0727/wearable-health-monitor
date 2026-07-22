@@ -1,0 +1,5 @@
+45830,BOOT reset_reason=POWERON heap=321544
+15245,BOOT reset_reason=OTHER heap=321544
+18503,BLE: initial advertising start OK
+36886,BLE: client connected
+2267,BOOT reset_reason=POWERON heap=321544

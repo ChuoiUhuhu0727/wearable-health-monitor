@@ -1,0 +1,11 @@
+333494,BOOT reset_reason=OTHER heap=321544
+142539,BOOT reset_reason=OTHER heap=321544
+145824,BLE: initial advertising start OK
+148910,watchdog: PPG lost contact, firing warning beep
+154537,BLE: client connected
+247935,BLE: client disconnected, restarting advertising
+248196,BLE: advertising restarted OK
+259827,BLE: client connected
+558562,BLE: client disconnected, restarting advertising
+558797,BLE: advertising restarted OK
+70304,BOOT reset_reason=BROWNOUT (power dipped below threshold) heap=
