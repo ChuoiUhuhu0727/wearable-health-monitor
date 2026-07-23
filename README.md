@@ -169,3 +169,20 @@ This device delivers comparable monitoring capability at ~$20–30 in components
 | M7: 60-minute stability test | End of week 11 | Not started |
 | M8: CIC submission + paper draft | End of week 12 | Not started |
 | M9: Final demo | End of week 13 | Not started |
+
+---
+
+## Progress Log
+
+### 2026-07-23 — Participant log done; LOGO-CV check on the bug-1 fix (lying/sitting/standing overlap)
+
+- Built `experiments/wrist/participant_log.csv` — all 15 valid sessions confirmed as **15 distinct participants** (protocol_version `v1_fixed_order` for all of them, activity order not yet randomized).
+- Tested the proposed fix for bug 1 (mean_mag/std_mag can't separate lying/sitting/standing — confirmed with real overlapping ranges) by adding `mean_ax/mean_ay/mean_az` as features, reconstructed from `raw_accel_N.csv` using a time-based window (`logo_cv_activity_features.py`) — only possible for the 4 sessions that have raw accel capture (P01-P04).
+- **LOGO-CV (leave-one-participant-out, N=4) result:** mean accuracy improves from 48.2% (baseline) to 68.2% (raw per-axis mean) or 66.1% (per-axis mean relative to each participant's own lying baseline) — confirms the orientation-feature direction is right, but **neither variant generalizes to all 4 participants**: raw absolute values fail on P03 (46.8%, no better than baseline) because P03's wearing orientation shifts their per-axis values into a different range than the other 3; the relative-to-own-baseline version fixes P03 (69.7%) but breaks P01 (45.5%, worse than baseline) by erasing the exact signal P01's raw values were exploiting well.
+
+**Open question, not yet resolved — carrying into next session:** with only 4 raw-capture participants, there isn't enough data to tell whether raw or relative per-axis features (or some other calibration) generalizes best across wearing orientations. Is bug 1 (lying/sitting/standing separability) actually fixable with the current feature set, or does it need either (a) more raw-capture participants before picking a normalization approach, or (b) a different feature entirely (e.g., tilt angle instead of raw axis)? Don't lock in either variant yet.
+
+**Next session:**
+1. Decide: collect more raw-capture sessions before choosing an orientation-feature normalization, or explore tilt-angle features on the current 4.
+2. `data/processed/` master dataset script (raw→clean from `valid_sessions/`) still not built.
+3. Decide on randomizing activity order for future collection (open question from 2026-07-22, not yet resolved either way).
