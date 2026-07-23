@@ -1,0 +1,16 @@
+session_file,date,time,protocol_version,participant_id,has_raw_accel_ppg,notes
+session_1_20260707_095437.csv,2026-07-07,09:54:37,v1_fixed_order,P05,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_1_20260707_121526.csv,2026-07-07,12:15:26,v1_fixed_order,P06,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_1_20260714_185527.csv,2026-07-14,18:55:27,v1_fixed_order,P10,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_1_20260714_192733.csv,2026-07-14,19:27:33,v1_fixed_order,P12,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_1_20260714_201843.csv,2026-07-14,20:18:43,v1_fixed_order,P14,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_1_20260714_212411.csv,2026-07-14,21:24:11,v1_fixed_order,P15,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_1_20260717_183249.csv,2026-07-17,18:32:49,v1_fixed_order,P01,yes,confirmed distinct from P02/P03/P04
+session_1_20260718_203817.csv,2026-07-18,20:38:17,v1_fixed_order,P02,yes,confirmed distinct from P01/P03/P04
+session_1_20260718_210037.csv,2026-07-18,21:00:37,v1_fixed_order,P03,yes,confirmed distinct from P01/P02/P04
+session_1_20260720_184050.csv,2026-07-20,18:40:50,v1_fixed_order,P04,yes,confirmed distinct from P01/P02/P03
+session_2_20260710_142941.csv,2026-07-10,14:29:41,v1_fixed_order,P07,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_2_20260714_170105.csv,2026-07-14,17:01:05,v1_fixed_order,P08,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_2_20260714_195838.csv,2026-07-14,19:58:38,v1_fixed_order,P13,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_3_20260714_185531.csv,2026-07-14,18:55:31,v1_fixed_order,P11,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
+session_7_20260714_170112.csv,2026-07-14,17:01:12,v1_fixed_order,P09,no,"confirmed distinct from other 10 in this batch (assumption: also distinct from P01-P04, not directly confirmed)"
