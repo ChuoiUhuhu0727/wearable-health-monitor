@@ -1033,11 +1033,11 @@ and `scipy`.
 
 | Step | Command | What you should see |
 | :--- | :--- | :--- |
-| 1 | `python build_processed_dataset.py` | Rebuilds the dataset from the device's original recordings |
-| 2 | `python train_activity_classifier.py` | `5-class mean accuracy: 0.548` and `3-class mean accuracy: 0.853` |
-| 3 | `python check_accel_variance_by_activity.py` | `ratio dynamic/static: 15.66x` |
-| 4 | `python check_majority_baseline.py` | Margin over baseline `+0.3474` (5-class) and `+0.2535` (3-class) |
-| 5 | `python plot_waveform_to_features.py` | Generates the four figures in Chapter 3 |
+| 1 | `python scripts/dataset/build_processed_dataset.py` | Rebuilds the dataset from the device's original recordings |
+| 2 | `python scripts/train/train_activity_classifier.py` | `5-class mean accuracy: 0.548` and `3-class mean accuracy: 0.853` |
+| 3 | `python scripts/analysis/check_accel_variance_by_activity.py` | `ratio dynamic/static: 15.66x` |
+| 4 | `python scripts/analysis/check_majority_baseline.py` | Margin over baseline `+0.3474` (5-class) and `+0.2535` (3-class) |
+| 5 | `python scripts/analysis/plot_waveform_to_features.py` | Generates the four figures in Chapter 3 |
 
 ## A.2. Subsystem B
 
@@ -1046,13 +1046,13 @@ the one before it:
 
 | Step | Command | The question it answers |
 | :--- | :--- | :--- |
-| 1 | `python lms_denoise_mvp.py` | The initial comparison — gives 26.95 / 26.96 / 29.83 / 29.96 bpm |
-| 2 | `python check_ground_truth_sanity.py` | Is the reference measurement correct? (**No** — it fails for 3 of 5 people) |
-| 3 | `python hr_estimator_v2.py` | Does the fixed estimator pass the physiological check? (4/5, up from 2/5) |
-| 4 | `python lms_denoise_v2.py` | Re-measure with the fixed reference — signal yield 35.0% vs 9.6% |
-| 5 | `python plot_filter_results_v2.py` · `python plot_input_signals.py` | Generates the figures in Chapter 4 |
+| 1 | `python scripts/analysis/lms_denoise_mvp.py` | The initial comparison — gives 26.95 / 26.96 / 29.83 / 29.96 bpm |
+| 2 | `python scripts/analysis/check_ground_truth_sanity.py` | Is the reference measurement correct? (**No** — it fails for 3 of 5 people) |
+| 3 | `python scripts/analysis/hr_estimator_v2.py` | Does the fixed estimator pass the physiological check? (4/5, up from 2/5) |
+| 4 | `python scripts/analysis/lms_denoise_v2.py` | Re-measure with the fixed reference — signal yield 35.0% vs 9.6% |
+| 5 | `python scripts/analysis/plot_filter_results_v2.py` · `python scripts/analysis/plot_input_signals.py` | Generates the figures in Chapter 4 |
 
-English-labelled versions of all figures are produced by `python plot_figures_en.py`.
+English-labelled versions of all figures are produced by `python scripts/analysis/plot_figures_en.py`.
 
 ## A.3. Notes on quoting these numbers
 

@@ -648,7 +648,7 @@ has counted.
 | System change log | Every hardware and protocol decision, with its cause | `CHANGELOG.md` |
 | Testing code | 12 scripts; every number reproducible with one command | See `paper/EVIDENCE_GUIDE.md` |
 | Measurement figures | 12 figures generated directly from data, none drawn by hand | `paper/figures_en/` |
-| Firmware source | The multi-task architecture and the on-device feature computation | `firmware_ble/main.cpp`, lines 738–750 |
+| Firmware source | The multi-task architecture and the on-device feature computation | `firmware/ble/main.cpp`, lines 738–750 |
 
 *Table 20: Inventory of evidence.*
 

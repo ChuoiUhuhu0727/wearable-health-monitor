@@ -42,10 +42,10 @@ resample and filter roughly 45,000 samples per participant and take one to two m
 
 | Step | Command | Expected output |
 | :--- | :--- | :--- |
-| 1 | `python build_processed_dataset.py` | `Wrote 20258 rows (16880 clean)`, 18 participants |
-| 2 | `python train_activity_classifier.py` | `5-class mean accuracy: 0.548` and `3-class mean accuracy: 0.853` |
-| 3 | `python check_accel_variance_by_activity.py` | `ratio dynamic/static: 15.66x` |
-| 4 | `python check_majority_baseline.py` | Margin over baseline `+0.3474` (5-class) and `+0.2535` (3-class) |
+| 1 | `python scripts/dataset/build_processed_dataset.py` | `Wrote 20258 rows (16880 clean)`, 18 participants |
+| 2 | `python scripts/train/train_activity_classifier.py` | `5-class mean accuracy: 0.548` and `3-class mean accuracy: 0.853` |
+| 3 | `python scripts/analysis/check_accel_variance_by_activity.py` | `ratio dynamic/static: 15.66x` |
+| 4 | `python scripts/analysis/check_majority_baseline.py` | Margin over baseline `+0.3474` (5-class) and `+0.2535` (3-class) |
 
 Step 1 is optional — the resulting dataset is included. It is provided so that the path from
 the original device recordings to the training dataset can be inspected and re-run.
@@ -62,10 +62,10 @@ before it, and the sequence is itself part of the reported finding.
 
 | Step | Command | The question it answers |
 | :--- | :--- | :--- |
-| 1 | `python lms_denoise_mvp.py` | The initial three-filter comparison: 26.95 / 26.96 / 29.83 / 29.96 bpm |
-| 2 | `python check_ground_truth_sanity.py` | Is the reference measurement itself correct? **No** — it fails for 3 of 5 participants |
-| 3 | `python hr_estimator_v2.py` | Does the corrected estimator pass the physiological check? Yes, for 4 of 5 |
-| 4 | `python lms_denoise_v2.py` | Re-measuring with the corrected reference: signal yield 35.0% vs 9.6% |
+| 1 | `python scripts/analysis/lms_denoise_mvp.py` | The initial three-filter comparison: 26.95 / 26.96 / 29.83 / 29.96 bpm |
+| 2 | `python scripts/analysis/check_ground_truth_sanity.py` | Is the reference measurement itself correct? **No** — it fails for 3 of 5 participants |
+| 3 | `python scripts/analysis/hr_estimator_v2.py` | Does the corrected estimator pass the physiological check? Yes, for 4 of 5 |
+| 4 | `python scripts/analysis/lms_denoise_v2.py` | Re-measuring with the corrected reference: signal yield 35.0% vs 9.6% |
 
 Step 2 also writes the waveform figures used to distinguish a sensor fault from an algorithm
 fault, and prints the beat-interval diagnostics (interval ratio 1.03, amplitude ratio 2.22)
@@ -81,11 +81,11 @@ number but documents an intermediate step in the investigation.
 
 | Command | Figures produced |
 | :--- | :--- |
-| `python plot_waveform_to_features.py` | Four figures on raw waveforms and feature distributions |
-| `python plot_filter_results_v2.py` | Two figures on signal yield and threshold sensitivity |
-| `python plot_input_signals.py` | Two figures showing every input signal in the pipeline |
-| `python plot_week_diagrams.py` | Twelve explanatory diagrams for the weekly reports |
-| `python plot_figures_en.py` · `python plot_week_diagrams_en.py` | English-labelled versions of the above |
+| `python scripts/analysis/plot_waveform_to_features.py` | Four figures on raw waveforms and feature distributions |
+| `python scripts/analysis/plot_filter_results_v2.py` | Two figures on signal yield and threshold sensitivity |
+| `python scripts/analysis/plot_input_signals.py` | Two figures showing every input signal in the pipeline |
+| `python scripts/report/plot_week_diagrams.py` | Twelve explanatory diagrams for the weekly reports |
+| `python scripts/analysis/plot_figures_en.py` · `python scripts/report/plot_week_diagrams_en.py` | English-labelled versions of the above |
 
 The English figure scripts import the data-preparation functions from their Vietnamese
 counterparts rather than duplicating them, so both language versions are guaranteed to be
@@ -106,7 +106,7 @@ generated from the same analysis.
 | Median `std_mag` 23.3 / 365.0, ratio 15.7× | `check_accel_variance_by_activity.py` |
 | Per-activity feature medians (Table: 2000.40, 1828.01 …) | `plot_waveform_to_features.py` |
 | Baselines 0.201 / 0.599 and margins +0.347 / +0.254 | `check_majority_baseline.py` |
-| Window of 2.4 s, 60 samples at 25 Hz, stride 0.4 s | `firmware_ble/main.cpp`, lines 738–750 |
+| Window of 2.4 s, 60 samples at 25 Hz, stride 0.4 s | `firmware/ble/main.cpp`, lines 738–750 |
 | 18 participants, 16,880 clean rows | Printed by every script on its first line |
 | 68.2% / 46.8% (per-axis feature attempts) | `CHANGELOG.md`, entries 2026-07-22 to 2026-07-28 |
 
@@ -188,7 +188,7 @@ distributions are computed from those five, not from all eighteen.
 | `experiments/wrist/valid_sessions/` | Original device recordings, never edited by hand |
 | `experiments/wrist/participant_log.csv` | Participant index and protocol version per session |
 | `experiments/wrist/session_manifest.csv` | Status of every recorded session, including exclusions |
-| `firmware_ble/main.cpp` | Device firmware; feature computation at lines 738–750 |
+| `firmware/ble/main.cpp` | Device firmware; feature computation at lines 738–750 |
 | `train_activity_classifier.py` · `.ipynb` | Model training and evaluation; the notebook version carries the same analysis with plots and saved output |
 | `check_*.py` | Verification scripts, one per claim |
 | `lms_denoise_mvp.py` · `lms_denoise_v2.py` | Filter comparison before and after the reference correction |
