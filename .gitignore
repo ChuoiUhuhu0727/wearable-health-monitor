@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 experiments/**/*_plot.png
 build/
+
+# Local submission material (binary deliverables + third-party PDFs)
+archived/submissions/

@@ -625,7 +625,7 @@ không phải bằng chứng rằng chúng đúng — mà là bằng chứng r�
 | Nhật ký thay đổi hệ thống | Từng quyết định ở tầng phần cứng và giao thức, kèm nguyên nhân | `CHANGELOG.md` |
 | Mã kiểm thử | 12 script, mọi con số tái tạo được bằng một lệnh | Xem `paper/EVIDENCE_GUIDE.md` |
 | Biểu đồ đo đạc | 12 biểu đồ sinh trực tiếp từ dữ liệu, không vẽ tay | `paper/figures/` |
-| Mã nguồn firmware | Kiến trúc đa tác vụ và phần tính đặc trưng chạy trên thiết bị | `firmware_ble/main.cpp`, dòng 738–750 |
+| Mã nguồn firmware | Kiến trúc đa tác vụ và phần tính đặc trưng chạy trên thiết bị | `firmware/ble/main.cpp`, dòng 738–750 |
 
 *Bảng 20: Danh mục bằng chứng.*
 

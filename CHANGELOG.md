@@ -1,5 +1,22 @@
 # Changelog — quyết định ở mức boundary/interface
 
+## 2026-09-15 — Export model ghi thẳng vào firmware/ble/, bỏ bản copy ở repo root
+`export_classifier_to_c.py` đổi OUT_PATH từ `activity_classifier_5class.h` (root) sang
+`firmware/ble/activity_classifier_5class.h` — trước đây sinh ra ở root rồi copy tay sang
+firmware, 2 bản dễ trôi lệch mà không ai biết. Giờ chỉ còn 1 bản, nằm đúng chỗ build đọc.
+
+## 2026-09-15 — Sắp xếp lại cây thư mục: firmware/, scripts/, docs/ + README mới cho nhà tuyển dụng
+Firmware gom vào `firmware/{ble,baseline,capture}` (platformio `src_dir = firmware`, `default_envs`
+baseline → ble); 25 script Python ở root gom vào `scripts/{collect,dataset,train,analysis,report,viz}`
+— **mọi lệnh gọi script đổi đường dẫn**, đã cập nhật lại trong `paper/*.md` + `docs/TEAMMATE_SETUP.md`,
+vẫn phải chạy từ gốc repo vì path trong script là relative theo CWD. Cụm `lms_denoise_mvp` /
+`hr_estimator_v2` / `lms_denoise_v2` / `check_*` / 4 `plot_*` import lẫn nhau kiểu sibling nên buộc
+phải nằm chung `scripts/analysis/` — tách ra là vỡ import (ghi rõ trong `scripts/README.md`).
+`experiments/` và `data/processed/` giữ nguyên chỗ cũ có chủ đích, để phần tái lập kết quả trong
+thesis/EVIDENCE_GUIDE không sai. `firmware_main/` + `jetson_server/` vào `archived/`; README cũ
+thành `archived/README_original_2026-08-13.md`, README mới có bản EN (mặc định) + `README.vi.md`.
+Verify: 3 env firmware build PASS, toàn bộ script compile, path constant + link doc trỏ đúng file thật.
+
 ## 2026-08-15 — Ground truth nhịp tim bị bác bỏ và thay bằng estimator v2
 `spectral_bpm()` trong `lms_denoise_mvp.py` bám vào subharmonic (P17 lúc chạy: báo 77 bpm
 trong khi đếm tay ra 156), rồi `MAX_JUMP_BPM=25` khoá cứng sai số đó lại — nên **mọi con số

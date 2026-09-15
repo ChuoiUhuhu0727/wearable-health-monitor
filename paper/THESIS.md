@@ -1012,11 +1012,11 @@ Toàn bộ số liệu trong báo cáo tái lập được từ mã nguồn kèm
 
 | Bước | Lệnh | Kết quả cần thấy |
 | :--- | :--- | :--- |
-| 1 | `python build_processed_dataset.py` | Dựng lại tập dữ liệu từ bản ghi gốc của thiết bị |
-| 2 | `python train_activity_classifier.py` | `5-class mean accuracy: 0.548` và `3-class mean accuracy: 0.853` |
-| 3 | `python check_accel_variance_by_activity.py` | `ratio dynamic/static: 15.66x` |
-| 4 | `python check_majority_baseline.py` | Biên vượt baseline `+0.3474` (5 lớp) và `+0.2535` (3 lớp) |
-| 5 | `python plot_waveform_to_features.py` | Sinh 4 hình của Chương 3 |
+| 1 | `python scripts/dataset/build_processed_dataset.py` | Dựng lại tập dữ liệu từ bản ghi gốc của thiết bị |
+| 2 | `python scripts/train/train_activity_classifier.py` | `5-class mean accuracy: 0.548` và `3-class mean accuracy: 0.853` |
+| 3 | `python scripts/analysis/check_accel_variance_by_activity.py` | `ratio dynamic/static: 15.66x` |
+| 4 | `python scripts/analysis/check_majority_baseline.py` | Biên vượt baseline `+0.3474` (5 lớp) và `+0.2535` (3 lớp) |
+| 5 | `python scripts/analysis/plot_waveform_to_features.py` | Sinh 4 hình của Chương 3 |
 
 ## A.2. Subsystem B
 
@@ -1024,11 +1024,11 @@ Các script phải chạy **theo đúng thứ tự** này, vì mỗi bước l�
 
 | Bước | Lệnh | Trả lời câu hỏi gì |
 | :--- | :--- | :--- |
-| 1 | `python lms_denoise_mvp.py` | So sánh ban đầu — ra 26.95 / 26.96 / 29.83 / 29.96 bpm |
-| 2 | `python check_ground_truth_sanity.py` | Thước đo tham chiếu có đúng không? (**không** — trượt ở 3/5 người) |
-| 3 | `python hr_estimator_v2.py` | Thước đã sửa có qua kiểm tra sinh lý không? (4/5, so với 2/5) |
-| 4 | `python lms_denoise_v2.py` | Đo lại bằng thước mới — Signal Yield 35.0% vs 9.6% |
-| 5 | `python plot_filter_results_v2.py` · `python plot_input_signals.py` | Sinh các hình của Chương 4 |
+| 1 | `python scripts/analysis/lms_denoise_mvp.py` | So sánh ban đầu — ra 26.95 / 26.96 / 29.83 / 29.96 bpm |
+| 2 | `python scripts/analysis/check_ground_truth_sanity.py` | Thước đo tham chiếu có đúng không? (**không** — trượt ở 3/5 người) |
+| 3 | `python scripts/analysis/hr_estimator_v2.py` | Thước đã sửa có qua kiểm tra sinh lý không? (4/5, so với 2/5) |
+| 4 | `python scripts/analysis/lms_denoise_v2.py` | Đo lại bằng thước mới — Signal Yield 35.0% vs 9.6% |
+| 5 | `python scripts/analysis/plot_filter_results_v2.py` · `python scripts/analysis/plot_input_signals.py` | Sinh các hình của Chương 4 |
 
 ## A.3. Lưu ý khi trích dẫn số liệu
 

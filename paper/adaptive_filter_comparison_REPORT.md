@@ -320,10 +320,10 @@ máy chỉ đáng theo đuổi **sau khi** có front-end tốt và một ground 
 
 ## Reproducibility checklist
 
-- [x] `python lms_denoise_mvp.py` ra đúng 26.95 / 26.96 / 29.83 / 29.96 — xác nhận 2026-08-15
-- [x] `python check_ground_truth_sanity.py` ra đúng bảng §3 và các hình dạng sóng
-- [x] `python hr_estimator_v2.py` ra đúng bảng kiểm chứng §5
-- [x] `python lms_denoise_v2.py` ra đúng bảng tỉ lệ đọc được §6
+- [x] `python scripts/analysis/lms_denoise_mvp.py` ra đúng 26.95 / 26.96 / 29.83 / 29.96 — xác nhận 2026-08-15
+- [x] `python scripts/analysis/check_ground_truth_sanity.py` ra đúng bảng §3 và các hình dạng sóng
+- [x] `python scripts/analysis/hr_estimator_v2.py` ra đúng bảng kiểm chứng §5
+- [x] `python scripts/analysis/lms_denoise_v2.py` ra đúng bảng tỉ lệ đọc được §6
 - [ ] Giang đọc hiểu §4 đủ để giải thích lại cơ chế octave error khi advisor hỏi
 - [ ] Giang tự đếm đỉnh trên `figures/gt_waveform_P17.png` để tự xác nhận con số 156
 - [ ] Đối chiếu báo cáo với rubric thật của môn học — Claude không truy cập được rubric
